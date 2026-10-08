@@ -49,16 +49,17 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto no-print">
-      {/* Backdrop */}
+      {/* Backdrop (clean solid dim, no blur filter) */}
       <div 
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+        className="fixed inset-0 bg-slate-900/60 transition-opacity"
         onClick={onClose}
+        aria-hidden="true"
       />
 
       {/* Modal Dialog */}
       <div className="flex min-h-full items-center justify-center p-3 sm:p-4 text-center">
         <div 
-          className={`w-full ${widthMap[maxWidth]} transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-2xl transition-all border border-slate-200 animate-in zoom-in-95 duration-200`}
+          className={`relative z-10 w-full ${widthMap[maxWidth]} overflow-hidden rounded-2xl bg-white text-left align-middle shadow-2xl border border-slate-200`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}

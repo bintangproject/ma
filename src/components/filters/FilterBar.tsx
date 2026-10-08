@@ -271,7 +271,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             <option value="SAKIT">Sakit</option>
             <option value="ALPA">Alpa / Tanpa Ket.</option>
             <option value="TUGAS_DINAS">Tugas Dinas</option>
-            <option value="TERLAMBAT">Terlambat</option>
           </select>
 
           <button

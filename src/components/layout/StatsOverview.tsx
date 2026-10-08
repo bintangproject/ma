@@ -6,9 +6,8 @@ import {
   FileText, 
   Stethoscope, 
   AlertCircle, 
-  Clock, 
-  Award,
-  Users
+  Briefcase, 
+  Award 
 } from 'lucide-react';
 
 interface StatsOverviewProps {
@@ -17,13 +16,6 @@ interface StatsOverviewProps {
 
 export const StatsOverview: React.FC<StatsOverviewProps> = ({ records }) => {
   const stats = calculateSummary(records);
-
-  // Determine health color for attendance rate
-  const getRateColor = (rate: number) => {
-    if (rate >= 90) return 'text-emerald-600 bg-emerald-50 border-emerald-200';
-    if (rate >= 75) return 'text-amber-600 bg-amber-50 border-amber-200';
-    return 'text-rose-600 bg-rose-50 border-rose-200';
-  };
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 no-print">
@@ -68,7 +60,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ records }) => {
             {stats.hadir}
           </span>
           <span className="text-xs text-slate-400 block font-normal mt-0.5">
-            sesi KBM tepat waktu
+            sesi KBM terlaksana
           </span>
         </div>
       </div>
@@ -108,7 +100,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ records }) => {
             {stats.sakit}
           </span>
           <span className="text-xs text-slate-400 block font-normal mt-0.5">
-            surat dokter / santri
+            surat keterangan
           </span>
         </div>
       </div>
@@ -133,22 +125,22 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ records }) => {
         </div>
       </div>
 
-      {/* 6. Terlambat & Tugas Dinas */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex flex-col justify-between hover:border-slate-300 transition-colors">
+      {/* 6. Tugas Dinas */}
+      <div className="bg-white p-4 rounded-xl border border-indigo-100/80 shadow-2xs flex flex-col justify-between hover:border-indigo-200 transition-colors">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
-            T.Dinas / Telat
+          <span className="text-xs font-semibold text-indigo-800 uppercase tracking-wider">
+            Tugas Dinas
           </span>
-          <div className="p-1.5 bg-slate-100 text-slate-600 rounded-lg">
-            <Clock size={16} />
+          <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg">
+            <Briefcase size={16} />
           </div>
         </div>
-        <div className="mt-2 flex items-baseline gap-2">
+        <div className="mt-2">
           <span className="text-2xl font-black text-slate-800">
-            {stats.tugasDinas + stats.terlambat}
+            {stats.tugasDinas}
           </span>
-          <span className="text-xs text-slate-400 font-normal">
-            ({stats.tugasDinas} TD / {stats.terlambat} T)
+          <span className="text-xs text-slate-400 block font-normal mt-0.5">
+            workshop / luar madrasah
           </span>
         </div>
       </div>

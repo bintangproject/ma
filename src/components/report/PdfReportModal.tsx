@@ -9,7 +9,7 @@ import {
   calculateTeacherSummaries,
   STATUS_CONFIG 
 } from '../../utils/formatters';
-import { Printer, Download, Calendar, CheckSquare, Layers, FileSpreadsheet } from 'lucide-react';
+import { Printer } from 'lucide-react';
 
 interface PdfReportModalProps {
   isOpen: boolean;
@@ -29,7 +29,6 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   onChangeFilterState,
 }) => {
   const [reportType, setReportType] = useState<'summary' | 'detailed'>('summary');
-  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const printAreaRef = useRef<HTMLDivElement>(null);
 
   // Filter records within the modal's date range
@@ -44,19 +43,24 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     window.print();
   };
 
-  // Periode text
   const periodeText = filterState.startDate === filterState.endDate
     ? formatIndonesianDate(filterState.startDate)
     : `${formatIndonesianDate(filterState.startDate, false)} s.d. ${formatIndonesianDate(filterState.endDate)}`;
 
   const todayStr = formatIndonesianDate(new Date().toISOString().split('T')[0]);
 
+  const lembagaName = config.NAMA_LEMBAGA || 'MADRASAH ALIYAH DARUL LUGHAH WAL KAROMAH';
+  const kotaName = config.KOTA || 'Kraksaan';
+  const kepalaName = config.NAMA_KEPALA || 'Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd.';
+  const staffName = config.NAMA_STAFF || 'Ust. M. Fathur Rozak, S.Pd.';
+  const staffJabatan = config.JABATAN_STAFF || 'Waka Kurikulum';
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Cetak & Ekspor Laporan Resmi (PDF)"
-      subtitle="Dokumen administrasi kurikulum MA Darul Lughah Wal Karomah Kraksaan"
+      subtitle="Dokumen administrasi kurikulum madrasah siap cetak atau simpan PDF"
       icon={<Printer size={20} />}
       maxWidth="5xl"
     >
@@ -142,23 +146,19 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                 {/* Kop Teks Tengah */}
                 <div className="flex-1 text-center leading-snug">
                   <h4 className="text-xs sm:text-sm font-semibold tracking-wider text-slate-800 uppercase">
-                    {config.namaYayasan}
+                    YAYASAN PONDOK PESANTREN DARUL LUGHAH WAL KAROMAH
                   </h4>
                   <h2 className="text-base sm:text-xl font-extrabold text-sky-950 tracking-tight uppercase my-0.5">
-                    {config.namaMadrasah}
+                    {lembagaName}
                   </h2>
                   <p className="text-[11px] text-slate-700 font-medium">
-                    NSM: {config.nsm} • NPSN: {config.npsn} • Terakreditasi "A" (Unggul)
+                    NSM: 131235130045 • NPSN: 20584412 • Terakreditasi "A" (Unggul)
                   </p>
                   <p className="text-[10px] text-slate-600">
-                    {config.alamat}, Kec. {config.kecamatan}, Kab. {config.kabupaten}, {config.provinsi}
-                  </p>
-                  <p className="text-[10px] text-slate-500 italic">
-                    Telepon: {config.telepon} • Email: {config.email} • Website: {config.website}
+                    Jl. Raya Sidopekso No. 01, {kotaName}, Probolinggo, Jawa Timur
                   </p>
                 </div>
 
-                {/* Placeholder Logo Kemenag / Blank space for symmetrical Kop */}
                 <div className="w-20 flex-shrink-0 hidden sm:flex flex-col items-center justify-center opacity-85">
                   <div className="w-16 h-16 rounded-full border border-slate-300 flex items-center justify-center text-[10px] text-center font-bold text-slate-700 p-1 bg-slate-50">
                     KEMENAG RI
@@ -192,28 +192,26 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                 <strong className="text-slate-800">{stats.izin} I / {stats.sakit} S / {stats.alpa} A</strong>
               </div>
               <div>
-                <span className="text-slate-500 block">Tugas Dinas / Terlambat:</span>
-                <strong className="text-slate-800">{stats.tugasDinas} TD / {stats.terlambat} T</strong>
+                <span className="text-slate-500 block">Tugas Dinas:</span>
+                <strong className="text-indigo-700">{stats.tugasDinas} TD</strong>
               </div>
             </div>
 
             {/* TABEL SESUAI PILIHAN MODEL */}
             {reportType === 'summary' ? (
-              // TABEL 1: REKAP PER PENGAJAR
+              // TABEL 1: REKAP PER PENGAJAR (Bulanan)
               <div className="my-4 overflow-x-auto">
                 <table className="w-full text-left border-collapse border border-slate-800 text-[10px] sm:text-[11px]">
                   <thead>
                     <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b border-slate-800">
                       <th className="border border-slate-800 py-1.5 px-2 w-8">No</th>
-                      <th className="border border-slate-800 py-1.5 px-2 text-left">Nama Pengajar & NIP</th>
-                      <th className="border border-slate-800 py-1.5 px-2 text-left">Mata Pelajaran</th>
+                      <th className="border border-slate-800 py-1.5 px-2 text-left">Nama Pengajar</th>
                       <th className="border border-slate-800 py-1.5 px-1.5 w-12">Total Sesi</th>
                       <th className="border border-slate-800 py-1.5 px-1 w-8">H</th>
                       <th className="border border-slate-800 py-1.5 px-1 w-8">I</th>
                       <th className="border border-slate-800 py-1.5 px-1 w-8">S</th>
                       <th className="border border-slate-800 py-1.5 px-1 w-8">A</th>
                       <th className="border border-slate-800 py-1.5 px-1 w-8">TD</th>
-                      <th className="border border-slate-800 py-1.5 px-1 w-8">T</th>
                       <th className="border border-slate-800 py-1.5 px-2 w-14">% Hadir</th>
                       <th className="border border-slate-800 py-1.5 px-2 w-20">Keterangan</th>
                     </tr>
@@ -224,16 +222,13 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                         <td className="border border-slate-800 py-1 px-1.5 text-center font-medium">{idx + 1}</td>
                         <td className="border border-slate-800 py-1 px-2 font-semibold">
                           {ts.nama}
-                          <div className="text-[9px] text-slate-500 font-normal">NIP: {ts.nip}</div>
                         </td>
-                        <td className="border border-slate-800 py-1 px-2">{ts.mataPelajaran}</td>
                         <td className="border border-slate-800 py-1 px-1.5 text-center font-bold">{ts.totalSesi}</td>
                         <td className="border border-slate-800 py-1 px-1 text-center font-semibold">{ts.hadir}</td>
                         <td className="border border-slate-800 py-1 px-1 text-center">{ts.izin || '-'}</td>
                         <td className="border border-slate-800 py-1 px-1 text-center">{ts.sakit || '-'}</td>
                         <td className="border border-slate-800 py-1 px-1 text-center font-bold text-rose-700">{ts.alpa || '-'}</td>
                         <td className="border border-slate-800 py-1 px-1 text-center">{ts.tugasDinas || '-'}</td>
-                        <td className="border border-slate-800 py-1 px-1 text-center">{ts.terlambat || '-'}</td>
                         <td className="border border-slate-800 py-1 px-1.5 text-center font-bold">
                           {ts.persentaseKehadiran}%
                         </td>
@@ -253,10 +248,10 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                     <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b border-slate-800">
                       <th className="border border-slate-800 py-1.5 px-1.5 w-8">No</th>
                       <th className="border border-slate-800 py-1.5 px-2 w-20">Tanggal</th>
-                      <th className="border border-slate-800 py-1.5 px-2 text-left">Nama Pengajar & NIP</th>
+                      <th className="border border-slate-800 py-1.5 px-2 text-left">Nama Pengajar</th>
                       <th className="border border-slate-800 py-1.5 px-2 text-left">Mata Pelajaran</th>
                       <th className="border border-slate-800 py-1.5 px-2 w-20">Kelas</th>
-                      <th className="border border-slate-800 py-1.5 px-2 w-14">Jam Ke</th>
+                      <th className="border border-slate-800 py-1.5 px-2 w-14">Jam</th>
                       <th className="border border-slate-800 py-1.5 px-2 w-16">Status</th>
                       <th className="border border-slate-800 py-1.5 px-2">Keterangan</th>
                     </tr>
@@ -269,7 +264,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                         <td className="border border-slate-800 py-1 px-2 font-semibold">{r.namaGuru}</td>
                         <td className="border border-slate-800 py-1 px-2">{r.mataPelajaran}</td>
                         <td className="border border-slate-800 py-1 px-2 text-center">{r.kelas}</td>
-                        <td className="border border-slate-800 py-1 px-2 text-center">{r.jamKe}</td>
+                        <td className="border border-slate-800 py-1 px-2 text-center font-bold">Jam {r.jam}</td>
                         <td className="border border-slate-800 py-1 px-2 text-center font-bold">
                           {STATUS_CONFIG[r.status]?.label || r.status}
                         </td>
@@ -288,28 +283,22 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                 {/* Waka / Staff Kurikulum */}
                 <div className="text-center w-64">
                   <p className="text-slate-600 mb-1">Mengetahui,</p>
-                  <p className="font-bold text-slate-900">Waka / Staff Kurikulum</p>
-                  <div className="h-20" /> {/* Ruang Tanda Tangan */}
+                  <p className="font-bold text-slate-900">{staffJabatan}</p>
+                  <div className="h-20" />
                   <p className="font-bold text-slate-900 underline underline-offset-2">
-                    {config.namaKurikulum}
-                  </p>
-                  <p className="text-[11px] text-slate-600 font-mono">
-                    NIP. {config.nipKurikulum || '-'}
+                    {staffName}
                   </p>
                 </div>
 
                 {/* Kepala Madrasah */}
                 <div className="text-center w-64">
                   <p className="text-slate-600 mb-1">
-                    Kraksaan, {todayStr}
+                    {kotaName}, {todayStr}
                   </p>
                   <p className="font-bold text-slate-900">Kepala Madrasah Aliyah</p>
-                  <div className="h-20" /> {/* Ruang Tanda Tangan & Cap */}
+                  <div className="h-20" />
                   <p className="font-bold text-slate-900 underline underline-offset-2">
-                    {config.namaKepala}
-                  </p>
-                  <p className="text-[11px] text-slate-600 font-mono">
-                    NIP. {config.nipKepala || '-'}
+                    {kepalaName}
                   </p>
                 </div>
 
@@ -318,7 +307,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
             {/* Footer Cetak */}
             <div className="mt-6 pt-2 border-t border-slate-200 text-[9px] text-slate-400 flex justify-between items-center">
-              <span>Sistem Presensi Kurikulum MA Darul Lughah Wal Karomah • Kraksaan</span>
+              <span>{config.NAMA_APLIKASI || 'SIMPRES KURIKULUM'} • {lembagaName} {kotaName}</span>
               <span>Dicetak secara otomatis pada: {new Date().toLocaleString('id-ID')}</span>
             </div>
 

@@ -3,7 +3,9 @@ import {
   AttendanceRecord, 
   FilterState, 
   InstitutionConfig, 
-  Teacher 
+  MasterGuru,
+  MasterMapel,
+  DayScheduleMap
 } from './types/attendance';
 import { 
   loadStoredConfig, 
@@ -12,13 +14,23 @@ import {
   saveStoredRecords, 
   loadStoredTeachers, 
   saveStoredTeachers,
+  loadStoredSubjects,
+  saveStoredSubjects,
+  loadStoredSchedules,
+  saveStoredSchedules,
   loadLastSyncTime,
   saveLastSyncTime 
 } from './utils/storage';
-import { DEFAULT_INSTITUTION_CONFIG, DEFAULT_TEACHERS, getInitialAttendanceRecords } from './data/defaultData';
+import { 
+  DEFAULT_INSTITUTION_CONFIG, 
+  DEFAULT_MASTER_GURU, 
+  DEFAULT_MASTER_MAPEL, 
+  DEFAULT_WEEKLY_SCHEDULE, 
+  getInitialAttendanceRecords 
+} from './data/defaultData';
 import { exportToCsv } from './utils/exportUtils';
 import { calculateTeacherSummaries, formatIndonesianDate } from './utils/formatters';
-import { fetchFromGoogleSheets, postAttendanceToGAS } from './services/sheetsApi';
+import { fetchFromGoogleSheets, postBulkDayAttendance } from './services/sheetsApi';
 
 // Layout & Core Components
 import { Header } from './components/layout/Header';
@@ -26,7 +38,7 @@ import { StatsOverview } from './components/layout/StatsOverview';
 import { FilterBar } from './components/filters/FilterBar';
 import { AttendanceTable } from './components/attendance/AttendanceTable';
 import { TeacherSummaryTable } from './components/attendance/TeacherSummaryTable';
-import { QuickAttendanceModal } from './components/attendance/QuickAttendanceModal';
+import { BulkDailyAttendanceModal } from './components/attendance/BulkDailyAttendanceModal';
 import { PdfReportModal } from './components/report/PdfReportModal';
 import { WhatsAppShareModal } from './components/report/WhatsAppShareModal';
 import { SettingsModal } from './components/settings/SettingsModal';
@@ -40,21 +52,24 @@ import {
   CheckCircle, 
   AlertCircle, 
   Info, 
-  Calendar,
+  ArrowRight,
   Sparkles,
-  ArrowRight
+  CalendarCheck
 } from 'lucide-react';
 
 export default function App() {
   // 1. Initial State
   const [config, setConfig] = useState<InstitutionConfig>(loadStoredConfig);
   const [records, setRecords] = useState<AttendanceRecord[]>(loadStoredRecords);
-  const [teachers, setTeachers] = useState<Teacher[]>(loadStoredTeachers);
+  const [teachers, setTeachers] = useState<MasterGuru[]>(loadStoredTeachers);
+  const [subjects, setSubjects] = useState<MasterMapel[]>(loadStoredSubjects);
+  const [schedules, setSchedules] = useState<DayScheduleMap>(loadStoredSchedules);
+
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(loadLastSyncTime);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncNotice, setSyncNotice] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
-  // Active View Tab: 'logs' (detailed logs) or 'summary' (per-teacher recap)
+  // Active View Tab: 'logs' or 'summary'
   const [activeTab, setActiveTab] = useState<'logs' | 'summary'>('logs');
 
   // 2. Filter State
@@ -73,12 +88,11 @@ export default function App() {
   });
 
   // 3. Modals State
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [isWaModalOpen, setIsWaModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
 
   // Auto-dismiss notice
   useEffect(() => {
@@ -124,20 +138,41 @@ export default function App() {
     try {
       const result = await fetchFromGoogleSheets(config.gasUrl);
       if (result.success && result.data) {
-        if (result.data.attendance && result.data.attendance.length > 0) {
+        // Update Attendance Records
+        if (result.data.attendance) {
           setRecords(result.data.attendance);
           saveStoredRecords(result.data.attendance);
         }
+        // Update Master Guru
         if (result.data.teachers && result.data.teachers.length > 0) {
           setTeachers(result.data.teachers);
           saveStoredTeachers(result.data.teachers);
         }
+        // Update Master Mapel
+        if (result.data.subjects && result.data.subjects.length > 0) {
+          setSubjects(result.data.subjects);
+          saveStoredSubjects(result.data.subjects);
+        }
+        // Update Schedules
+        if (result.data.schedules && Object.keys(result.data.schedules).length > 0) {
+          setSchedules(result.data.schedules);
+          saveStoredSchedules(result.data.schedules);
+        }
+        // Update Config if present
+        if (result.data.config && Object.keys(result.data.config).length > 0) {
+          setConfig(prev => {
+            const merged = { ...prev, ...result.data!.config };
+            saveStoredConfig(merged);
+            return merged;
+          });
+        }
+
         const nowStr = new Date().toLocaleTimeString('id-ID');
         setLastSyncTime(nowStr);
         saveLastSyncTime(nowStr);
         setSyncNotice({
           type: 'success',
-          message: `Sinkronisasi berhasil! ${result.data.attendance?.length || 0} data termutakhir dimuat dari Google Sheets.`,
+          message: `Sinkronisasi berhasil! Data terhubung dengan Google Sheets.`,
         });
       } else {
         setSyncNotice({
@@ -155,31 +190,23 @@ export default function App() {
     }
   };
 
-  // 5. Save & Edit Handler
-  const handleSaveRecord = async (saved: AttendanceRecord) => {
-    const isEditing = !!editingRecord;
-    let updated: AttendanceRecord[];
-
-    if (isEditing) {
-      updated = records.map(r => r.id === saved.id ? saved : r);
-      setSyncNotice({
-        type: 'success',
-        message: `Data presensi ${saved.namaGuru} berhasil diperbarui.`,
-      });
-    } else {
-      updated = [saved, ...records];
-      setSyncNotice({
-        type: 'success',
-        message: `Data presensi ${saved.namaGuru} berhasil dicatat!`,
-      });
-    }
+  // 5. Save Bulk Day Attendance Handler
+  const handleSaveDayAttendance = async (tanggal: string, newDayRecords: AttendanceRecord[]) => {
+    // Replace all records for that date with the new day records
+    const otherRecords = records.filter(r => r.tanggal !== tanggal);
+    const updated = [...newDayRecords, ...otherRecords];
 
     setRecords(updated);
     saveStoredRecords(updated);
 
-    // If Google Apps Script URL exists, push in background
+    setSyncNotice({
+      type: 'success',
+      message: `Berhasil menyimpan daftar hadir tanggal ${formatIndonesianDate(tanggal)} (${newDayRecords.length} sesi)!`,
+    });
+
+    // If Google Apps Script URL exists, push bulk to Google Sheets
     if (config.gasUrl) {
-      postAttendanceToGAS(config.gasUrl, saved).then(res => {
+      postBulkDayAttendance(config.gasUrl, tanggal, newDayRecords).then(res => {
         if (!res.success) {
           console.warn('Background GAS sync error:', res.message);
         }
@@ -187,7 +214,7 @@ export default function App() {
     }
   };
 
-  // 6. Delete Handler
+  // 6. Delete Record Handler
   const handleDeleteRecord = (id: string) => {
     const updated = records.filter(r => r.id !== id);
     setRecords(updated);
@@ -204,17 +231,21 @@ export default function App() {
     saveStoredConfig(newConfig);
     setSyncNotice({
       type: 'success',
-      message: 'Pengaturan sistem dan identitas madrasah berhasil disimpan.',
+      message: 'Pengaturan sistem berhasil disimpan.',
     });
   };
 
-  // 8. Reset to Default Handler
+  // 8. Reset Data Handler
   const handleResetData = () => {
     const initialRecords = getInitialAttendanceRecords();
     setRecords(initialRecords);
     saveStoredRecords(initialRecords);
-    setTeachers(DEFAULT_TEACHERS);
-    saveStoredTeachers(DEFAULT_TEACHERS);
+    setTeachers(DEFAULT_MASTER_GURU);
+    saveStoredTeachers(DEFAULT_MASTER_GURU);
+    setSubjects(DEFAULT_MASTER_MAPEL);
+    saveStoredSubjects(DEFAULT_MASTER_MAPEL);
+    setSchedules(DEFAULT_WEEKLY_SCHEDULE);
+    saveStoredSchedules(DEFAULT_WEEKLY_SCHEDULE);
     setConfig(DEFAULT_INSTITUTION_CONFIG);
     saveStoredConfig(DEFAULT_INSTITUTION_CONFIG);
     setSyncNotice({
@@ -255,7 +286,7 @@ export default function App() {
     });
   }, [records, filter]);
 
-  // Unique list of teachers from records & master
+  // Unique list of teachers
   const uniqueTeachers = useMemo(() => {
     const set = new Set<string>();
     teachers.forEach(t => set.add(t.nama));
@@ -280,10 +311,7 @@ export default function App() {
         lastSyncTime={lastSyncTime}
         isSyncing={isSyncing}
         onSync={() => handleSync(false)}
-        onOpenAddModal={() => {
-          setEditingRecord(null);
-          setIsAddModalOpen(true);
-        }}
+        onOpenAddModal={() => setIsBulkModalOpen(true)}
         onOpenPdfModal={() => setIsPdfModalOpen(true)}
         onOpenWaModal={() => setIsWaModalOpen(true)}
         onExportCsv={() => exportToCsv(filteredRecords, config)}
@@ -331,10 +359,10 @@ export default function App() {
               </div>
               <div>
                 <h2 className="text-sm sm:text-base font-extrabold tracking-tight">
-                  Sinkronisasi Otomatis Google Spreadsheet
+                  Sinkronisasi Google Spreadsheet ({config.NAMA_LEMBAGA || 'MA Darul Lughah Wal Karomah'})
                 </h2>
                 <p className="text-xs text-sky-150 mt-0.5 leading-relaxed max-w-2xl">
-                  Hubungkan Google Spreadsheet madrasah Anda menggunakan Google Apps Script agar rekap presensi tersimpan online dan tersinkronisasi otomatis dari perangkat manapun.
+                  Hubungkan Google Spreadsheet Anda agar jadwal mingguan, data master guru (49 ustadz/ustadzah), master mapel (33 mapel), dan rekapan otomatis tersinkronisasi.
                 </p>
               </div>
             </div>
@@ -362,7 +390,7 @@ export default function App() {
         {/* 3. Summary KPI Overview Cards */}
         <StatsOverview records={filteredRecords} />
 
-        {/* 4. Flexible Filter Bar (Date range, guru, mapel, kelas, status) */}
+        {/* 4. Flexible Filter Bar */}
         <FilterBar
           filter={filter}
           onChangeFilter={setFilter}
@@ -411,9 +439,9 @@ export default function App() {
           <AttendanceTable
             records={filteredRecords}
             onDeleteRecord={handleDeleteRecord}
-            onEditRecord={(rec) => {
-              setEditingRecord(rec);
-              setIsAddModalOpen(true);
+            onEditRecord={() => {
+              // Open daily bulk modal for fast and convenient editing
+              setIsBulkModalOpen(true);
             }}
           />
         ) : (
@@ -439,23 +467,23 @@ export default function App() {
             <MadarLogo size="sm" />
             <div>
               <p className="font-bold text-slate-700">
-                {config.namaMadrasah}
+                {config.NAMA_LEMBAGA || 'MA Darul Lughah Wal Karomah'}
               </p>
               <p className="text-[11px] text-slate-400">
-                {config.namaYayasan} • {config.kecamatan}, {config.kabupaten}
+                Yayasan Pondok Pesantren Darul Lughah Wal Karomah • {config.KOTA || 'Kraksaan'}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-slate-500">
-            <span>Staff Kurikulum: <strong>{config.namaKurikulum.split('(')[0].trim()}</strong></span>
+            <span>Staff Kurikulum: <strong>{config.NAMA_STAFF || 'Ust. M. Fathur Rozak, S.Pd.'}</strong></span>
             <span>•</span>
             <button
               type="button"
               onClick={() => setIsGuideModalOpen(true)}
               className="text-sky-700 hover:underline font-medium"
             >
-              Panduan Deploy Vercel & Apps Script
+              Panduan Apps Script & Vercel
             </button>
             <span>•</span>
             <button
@@ -471,16 +499,15 @@ export default function App() {
       </footer>
 
       {/* 8. Modals */}
-      {/* Quick Attendance Entry Modal */}
-      <QuickAttendanceModal
-        isOpen={isAddModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setEditingRecord(null);
-        }}
-        onSave={handleSaveRecord}
+      {/* BULK DAILY ATTENDANCE MODAL (Auto-filled with Hadir, single-click save) */}
+      <BulkDailyAttendanceModal
+        isOpen={isBulkModalOpen}
+        onClose={() => setIsBulkModalOpen(false)}
+        onSaveDay={handleSaveDayAttendance}
+        existingRecords={records}
+        schedules={schedules}
         teachers={teachers}
-        editingRecord={editingRecord}
+        subjects={subjects}
       />
 
       {/* Official PDF Report Print Modal */}
@@ -502,7 +529,7 @@ export default function App() {
         filterState={filter}
       />
 
-      {/* Settings Modal (GAS URL & Kop Surat Config) */}
+      {/* Settings Modal (GAS URL & Config fields) */}
       <SettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}

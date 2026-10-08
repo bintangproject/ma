@@ -56,16 +56,16 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
-                  <span className="text-sky-700">SIMPRES</span>
+                  <span className="text-sky-700">{config.NAMA_APLIKASI || 'SIMPRES'}</span>
                   <span className="text-slate-400 font-normal">|</span>
-                  <span>Rekap Kehadiran Pengajar</span>
+                  <span>Presensi Pengajar</span>
                 </h1>
                 <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-100 text-sky-800 border border-sky-200">
-                  Kurikulum
+                  {config.JABATAN_STAFF || 'Kurikulum'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium">
-                MA Darul Lughah Wal Karomah • Kraksaan Probolinggo
+                {config.SINGKATAN || 'MA Darul Lughah Wal Karomah'} • {config.KOTA || 'Kraksaan'}
               </p>
             </div>
           </div>
@@ -99,14 +99,14 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             </div>
 
-            {/* Catat Presensi */}
+            {/* Input Presensi Hari Ini */}
             <button
               type="button"
               onClick={onOpenAddModal}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 active:bg-sky-800 rounded-lg shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 active:bg-sky-800 rounded-lg shadow-2xs transition-colors"
             >
               <PlusCircle size={15} />
-              <span>Input Presensi</span>
+              <span>Input Presensi Hari Ini</span>
             </button>
 
             {/* Cetak / Ekspor PDF */}

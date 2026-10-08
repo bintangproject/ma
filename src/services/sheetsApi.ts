@@ -1,29 +1,32 @@
-import { AttendanceRecord, Teacher } from '../types/attendance';
+import { AttendanceRecord, MasterGuru, MasterMapel, DayScheduleMap, InstitutionConfig } from '../types/attendance';
 
 export interface GasSyncResponse {
   success: boolean;
   message: string;
   data?: {
     attendance?: AttendanceRecord[];
-    teachers?: Teacher[];
+    teachers?: MasterGuru[];
+    subjects?: MasterMapel[];
+    schedules?: DayScheduleMap;
+    config?: Partial<InstitutionConfig>;
   };
 }
 
 /**
- * Fetch records from Google Apps Script Web App
+ * Fetch everything from Google Apps Script Web App
  */
 export async function fetchFromGoogleSheets(gasUrl: string): Promise<GasSyncResponse> {
   if (!gasUrl || !gasUrl.trim().startsWith('http')) {
     return {
       success: false,
-      message: 'URL Google Apps Script belum diisi dengan benar.',
+      message: 'URL Google Apps Script belum diisi.',
     };
   }
 
   try {
     const targetUrl = new URL(gasUrl.trim());
-    targetUrl.searchParams.set('action', 'getData');
-    targetUrl.searchParams.set('t', Date.now().toString()); // prevent caching
+    targetUrl.searchParams.set('action', 'getAllData');
+    targetUrl.searchParams.set('t', Date.now().toString());
 
     const response = await fetch(targetUrl.toString(), {
       method: 'GET',
@@ -42,8 +45,11 @@ export async function fetchFromGoogleSheets(gasUrl: string): Promise<GasSyncResp
         success: true,
         message: 'Data berhasil disinkronkan dari Google Sheets!',
         data: {
-          attendance: json.attendance || json.data?.attendance || [],
-          teachers: json.teachers || json.data?.teachers || [],
+          attendance: json.attendance || [],
+          teachers: json.teachers || [],
+          subjects: json.subjects || [],
+          schedules: json.schedules || {},
+          config: json.config || {},
         },
       };
     } else {
@@ -56,15 +62,19 @@ export async function fetchFromGoogleSheets(gasUrl: string): Promise<GasSyncResp
     console.error('GAS Fetch Error:', error);
     return {
       success: false,
-      message: `Gagal menghubungkan ke Google Sheets: ${error.message || 'Periksa koneksi internet atau hak akses Web App (Set to: Anyone)'}`,
+      message: `Gagal menghubungkan ke Google Sheets: ${error.message || 'Periksa koneksi atau hak akses Web App (Set to: Anyone)'}`,
     };
   }
 }
 
 /**
- * Send a new attendance record to Google Apps Script Web App
+ * Save an entire day's attendance records in bulk to Google Sheets
  */
-export async function postAttendanceToGAS(gasUrl: string, record: AttendanceRecord): Promise<GasSyncResponse> {
+export async function postBulkDayAttendance(
+  gasUrl: string, 
+  tanggal: string, 
+  records: AttendanceRecord[]
+): Promise<GasSyncResponse> {
   if (!gasUrl || !gasUrl.trim().startsWith('http')) {
     return {
       success: false,
@@ -74,14 +84,15 @@ export async function postAttendanceToGAS(gasUrl: string, record: AttendanceReco
 
   try {
     const payload = {
-      action: 'addAttendance',
-      record,
+      action: 'saveDayAttendance',
+      tanggal,
+      records,
     };
 
     const response = await fetch(gasUrl.trim(), {
       method: 'POST',
       headers: {
-        'Content-Type': 'text/plain;charset=utf-8', // Prevents preflight CORS options check in GAS
+        'Content-Type': 'text/plain;charset=utf-8',
       },
       body: JSON.stringify(payload),
     });
@@ -89,10 +100,10 @@ export async function postAttendanceToGAS(gasUrl: string, record: AttendanceReco
     const json = await response.json().catch(() => ({ status: 'success' }));
     return {
       success: true,
-      message: json.message || 'Data berhasil dikirim ke Google Sheets!',
+      message: json.message || 'Daftar hadir harian berhasil disimpan ke Google Sheets!',
     };
   } catch (error: any) {
-    console.error('GAS Post Error:', error);
+    console.error('GAS Post Bulk Error:', error);
     return {
       success: false,
       message: `Gagal mengirim ke Google Sheets: ${error.message}`,
@@ -101,86 +112,131 @@ export async function postAttendanceToGAS(gasUrl: string, record: AttendanceReco
 }
 
 /**
- * Generates the clean Google Apps Script code for Google Sheets
+ * Generates the complete Google Apps Script code for Google Sheets
  */
-export function getGoogleAppsScriptTemplateCode(spreadsheetName = 'Database Presensi MA Darul Lughah Wal Karomah'): string {
+export function getGoogleAppsScriptTemplateCode(): string {
   return `/**
  * =========================================================================
- * GOOGLE APPS SCRIPT - SISTEM REKAP KEHADIRAN PENGAJAR
+ * GOOGLE APPS SCRIPT - SIMPRES KURIKULUM
  * MADRASAH ALIYAH DARUL LUGHAH WAL KAROMAH KRAKSAAN
  * =========================================================================
  * 
  * CARA PEMASANGAN DI GOOGLE SPREADSHEET:
- * 1. Buat Spreadsheet baru di Google Drive Anda.
+ * 1. Buka Google Spreadsheet baru di Google Drive Anda.
  * 2. Klik menu 'Ekstensi' (Extensions) > 'Apps Script'.
- * 3. Hapus semua kode yang ada di editor, lalu PASTE SELURUH KODE INI.
+ * 3. Hapus semua kode bawaan, lalu PASTE SELURUH KODE DI BAWAH INI.
  * 4. Klik ikon Save (Simpan).
- * 5. Klik tombol 'Terapkan' (Deploy) berwarna biru di kanan atas > 'Penerapan baru' (New deployment).
- * 6. Pilih jenis: 'Aplikasi Web' (Web App).
- *    - Deskripsi: SIMPRES MA DARUL LUGHAH WAL KAROMAH
- *    - Jalankan sebagai (Execute as): 'Saya' (Me)
- *    - Siapa yang memiliki akses (Who has access): 'Siapa saja' (Anyone)  <-- PENTING!
- * 7. Klik 'Terapkan' (Deploy) dan berikan izin akses Google Account Anda.
- * 8. Salin URL Aplikasi Web yang diberikan, lalu paste ke Pengaturan Aplikasi ini!
+ * 5. Klik fungsi 'setupInitialDatabase' lalu klik 'Run' (Jalankan) sekali saja
+ *    untuk membuat sheet: Config, Master_Guru, Master_Mapel, Jadwal (Sabtu s.d. Kamis), dan Kehadiran secara otomatis!
+ * 6. Klik tombol biru 'Terapkan' (Deploy) > 'Penerapan baru' (New deployment).
+ *    - Jenis: 'Aplikasi Web' (Web App)
+ *    - Jalankan sebagai: 'Saya' (Me)
+ *    - Siapa yang memiliki akses: 'Siapa saja' (Anyone)  <-- PENTING!
+ * 7. Salin URL Aplikasi Web (berakhiran /exec) dan tempel ke Pengaturan aplikasi ini.
  */
 
-const SHEET_PRESENSI = "Kehadiran";
-const SHEET_GURU = "Daftar_Guru";
+const SHEET_CONFIG = "Config";
+const SHEET_GURU = "Master_Guru";
+const SHEET_MAPEL = "Master_Mapel";
+const SHEET_KEHADIRAN = "Kehadiran";
+const HARI_LIST = ["Sabtu", "Ahad", "Senin", "Selasa", "Rabu", "Kamis"];
 
 function doGet(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    initSheetsIfNeeded(ss);
+    setupInitialDatabase();
     
-    const attendanceSheet = ss.getSheetByName(SHEET_PRESENSI);
-    const teacherSheet = ss.getSheetByName(SHEET_GURU);
-    
-    // Baca Data Kehadiran
-    const attData = attendanceSheet.getDataRange().getValues();
+    // 1. Baca Config
+    const config = {};
+    const cfgSheet = ss.getSheetByName(SHEET_CONFIG);
+    if (cfgSheet) {
+      const cfgData = cfgSheet.getDataRange().getValues();
+      for (let i = 1; i < cfgData.length; i++) {
+        const k = String(cfgData[i][0] || '').trim();
+        const v = String(cfgData[i][1] || '').trim();
+        if (k) config[k] = v;
+      }
+    }
+
+    // 2. Baca Master Guru
+    const teachers = [];
+    const guruSheet = ss.getSheetByName(SHEET_GURU);
+    if (guruSheet) {
+      const gData = guruSheet.getDataRange().getValues();
+      for (let i = 1; i < gData.length; i++) {
+        if (!gData[i][1]) continue;
+        teachers.push({
+          kode: String(gData[i][0] || ''),
+          nama: String(gData[i][1] || '')
+        });
+      }
+    }
+
+    // 3. Baca Master Mapel
+    const subjects = [];
+    const mapelSheet = ss.getSheetByName(SHEET_MAPEL);
+    if (mapelSheet) {
+      const mData = mapelSheet.getDataRange().getValues();
+      for (let i = 1; i < mData.length; i++) {
+        if (!mData[i][1]) continue;
+        subjects.push({
+          kode: mData[i][0],
+          nama: String(mData[i][1] || '')
+        });
+      }
+    }
+
+    // 4. Baca Jadwal Mingguan per Hari
+    const schedules = {};
+    HARI_LIST.forEach(function(hari) {
+      schedules[hari] = [];
+      const hSheet = ss.getSheetByName(hari);
+      if (hSheet) {
+        const hData = hSheet.getDataRange().getValues();
+        for (let i = 1; i < hData.length; i++) {
+          if (!hData[i][0] && !hData[i][2]) continue;
+          schedules[hari].push({
+            id: hari.toLowerCase() + '-' + i,
+            hari: hari,
+            kelas: String(hData[i][0] || ''),
+            jam: hData[i][1],
+            mataPelajaran: String(hData[i][2] || ''),
+            guruPengampu: String(hData[i][3] || '')
+          });
+        }
+      }
+    });
+
+    // 5. Baca Sheet Utama Kehadiran
     const attendance = [];
-    if (attData.length > 1) {
+    const attSheet = ss.getSheetByName(SHEET_KEHADIRAN);
+    if (attSheet) {
+      const attData = attSheet.getDataRange().getValues();
       for (let i = 1; i < attData.length; i++) {
         const row = attData[i];
-        if (!row[0] && !row[1]) continue;
+        if (!row[1] && !row[6]) continue;
         attendance.push({
-          id: String(row[0] || 'rec-' + i),
+          id: String(row[0] || ('rec-' + i)),
           tanggal: formatDateString(row[1]),
-          namaGuru: String(row[2] || ''),
-          nip: String(row[3] || ''),
-          mataPelajaran: String(row[4] || ''),
-          kelas: String(row[5] || ''),
-          jamKe: String(row[6] || ''),
+          hari: String(row[2] || ''),
+          kelas: String(row[3] || ''),
+          jam: row[4],
+          mataPelajaran: String(row[5] || ''),
+          namaGuru: String(row[6] || ''),
           status: String(row[7] || 'HADIR').toUpperCase(),
           keterangan: String(row[8] || ''),
           waktuInput: String(row[9] || '')
         });
       }
     }
-    
-    // Baca Data Guru
-    const tData = teacherSheet.getDataRange().getValues();
-    const teachers = [];
-    if (tData.length > 1) {
-      for (let j = 1; j < tData.length; j++) {
-        const trow = tData[j];
-        if (!trow[1]) continue;
-        teachers.push({
-          id: String(trow[0] || 't-' + j),
-          nama: String(trow[1] || ''),
-          nip: String(trow[2] || ''),
-          mataPelajaran: String(trow[3] || ''),
-          jabatan: String(trow[4] || ''),
-          telepon: String(trow[5] || '')
-        });
-      }
-    }
 
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
-      totalAttendance: attendance.length,
-      totalTeachers: teachers.length,
-      attendance: attendance,
-      teachers: teachers
+      config: config,
+      teachers: teachers,
+      subjects: subjects,
+      schedules: schedules,
+      attendance: attendance
     })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
@@ -194,29 +250,52 @@ function doGet(e) {
 function doPost(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    initSheetsIfNeeded(ss);
-    const sheet = ss.getSheetByName(SHEET_PRESENSI);
+    setupInitialDatabase();
+    const attSheet = ss.getSheetByName(SHEET_KEHADIRAN);
     
     const postData = JSON.parse(e.postData.contents);
     
-    if (postData.action === "addAttendance" && postData.record) {
-      const r = postData.record;
-      sheet.appendRow([
-        r.id || ('rec-' + new Date().getTime()),
-        r.tanggal,
-        r.namaGuru,
-        "'" + (r.nip || '-'),
-        r.mataPelajaran,
-        r.kelas,
-        r.jamKe,
-        r.status,
-        r.keterangan || '',
-        r.waktuInput || Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss")
-      ]);
+    // Simpan Kehadiran Harian Sekaligus (Bulk Save)
+    if (postData.action === "saveDayAttendance" && postData.records) {
+      const targetDate = postData.tanggal;
+      const records = postData.records;
+      
+      // Hapus data lama untuk tanggal yang sama (agar tidak duplikat saat edit ulang)
+      const data = attSheet.getDataRange().getValues();
+      for (let i = data.length - 1; i >= 1; i--) {
+        const rowDate = formatDateString(data[i][1]);
+        if (rowDate === targetDate) {
+          attSheet.deleteRow(i + 1);
+        }
+      }
+      
+      // Tambahkan baris-baris baru
+      const rowsToAdd = [];
+      const timestamp = Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
+      
+      for (let j = 0; j < records.length; j++) {
+        const r = records[j];
+        rowsToAdd.push([
+          r.id || ('rec-' + targetDate + '-' + (j + 1)),
+          targetDate,
+          r.hari || '',
+          r.kelas || '',
+          r.jam || '',
+          r.mataPelajaran || '',
+          r.namaGuru || '',
+          r.status || 'HADIR',
+          r.keterangan || '',
+          timestamp
+        ]);
+      }
+      
+      if (rowsToAdd.length > 0) {
+        attSheet.getRange(attSheet.getLastRow() + 1, 1, rowsToAdd.length, 10).setValues(rowsToAdd);
+      }
       
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
-        message: "Data presensi berhasil disimpan ke Google Sheets!"
+        message: "Berhasil menyimpan " + rowsToAdd.length + " data kehadiran tanggal " + targetDate
       })).setMimeType(ContentService.MimeType.JSON);
     }
     
@@ -233,32 +312,78 @@ function doPost(e) {
   }
 }
 
-function initSheetsIfNeeded(ss) {
-  let attSheet = ss.getSheetByName(SHEET_PRESENSI);
-  if (!attSheet) {
-    attSheet = ss.insertSheet(SHEET_PRESENSI);
-    attSheet.appendRow([
-      "ID", "Tanggal", "Nama Guru", "NIP/NUPTK", "Mata Pelajaran", 
-      "Kelas", "Jam Ke", "Status", "Keterangan", "Waktu Input"
-    ]);
-    attSheet.getRange("A1:J1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
-  }
-  
-  let teacherSheet = ss.getSheetByName(SHEET_GURU);
-  if (!teacherSheet) {
-    teacherSheet = ss.insertSheet(SHEET_GURU);
-    teacherSheet.appendRow([
-      "ID", "Nama Guru", "NIP/NUPTK", "Mata Pelajaran", "Jabatan", "No HP/WA"
-    ]);
-    teacherSheet.getRange("A1:F1").setFontWeight("bold").setBackground("#0369a1").setFontColor("#ffffff");
-  }
-}
-
 function formatDateString(val) {
   if (val instanceof Date) {
     return Utilities.formatDate(val, "Asia/Jakarta", "yyyy-MM-dd");
   }
   return String(val);
+}
+
+// Inisialisasi otomatis semua sheet sesuai spesifikasi MA Darul Lughah Wal Karomah
+function setupInitialDatabase() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // 1. Sheet Config
+  let cfgSheet = ss.getSheetByName(SHEET_CONFIG);
+  if (!cfgSheet) {
+    cfgSheet = ss.insertSheet(SHEET_CONFIG);
+    cfgSheet.appendRow(["KEY", "VALUE"]);
+    cfgSheet.getRange("A1:B1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+    
+    const defaultConfigs = [
+      ["NAMA_LEMBAGA", "Madrasah Aliyah Darul Lughah Wal Karomah"],
+      ["SINGKATAN", "MA DARUL LUGHAH WAL KAROMAH"],
+      ["KOTA", "Kraksaan"],
+      ["TIMEZONE", "Asia/Jakarta"],
+      ["LOGO_URL", ""],
+      ["FAVICON_URL", ""],
+      ["NAMA_APLIKASI", "SIMPRES KURIKULUM"],
+      ["NAMA_KEPALA", "Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd."],
+      ["NAMA_STAFF", "Ust. M. Fathur Rozak, S.Pd."],
+      ["JABATAN_STAFF", "Waka Kurikulum"],
+      ["WARNA_UTAMA", "#0284c7"],
+      ["WARNA_SEKUNDER", "#0369a1"],
+      ["API_KEY", ""]
+    ];
+    cfgSheet.getRange(2, 1, defaultConfigs.length, 2).setValues(defaultConfigs);
+  }
+
+  // 2. Sheet Master Guru
+  let guruSheet = ss.getSheetByName(SHEET_GURU);
+  if (!guruSheet) {
+    guruSheet = ss.insertSheet(SHEET_GURU);
+    guruSheet.appendRow(["KODE GURU", "NAMA GURU"]);
+    guruSheet.getRange("A1:B1").setFontWeight("bold").setBackground("#0369a1").setFontColor("#ffffff");
+  }
+
+  // 3. Sheet Master Mapel
+  let mapelSheet = ss.getSheetByName(SHEET_MAPEL);
+  if (!mapelSheet) {
+    mapelSheet = ss.insertSheet(SHEET_MAPEL);
+    mapelSheet.appendRow(["KODE MAPEL", "MATA PELAJARAN"]);
+    mapelSheet.getRange("A1:B1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+  }
+
+  // 4. Sheet Hari Jadwal
+  HARI_LIST.forEach(function(hari) {
+    let hSheet = ss.getSheetByName(hari);
+    if (!hSheet) {
+      hSheet = ss.insertSheet(hari);
+      hSheet.appendRow(["Kelas", "Jam", "Mata Pelajaran", "Guru Pengampu"]);
+      hSheet.getRange("A1:D1").setFontWeight("bold").setBackground("#0ea5e9").setFontColor("#ffffff");
+    }
+  });
+
+  // 5. Sheet Utama Kehadiran
+  let attSheet = ss.getSheetByName(SHEET_KEHADIRAN);
+  if (!attSheet) {
+    attSheet = ss.insertSheet(SHEET_KEHADIRAN);
+    attSheet.appendRow([
+      "ID", "Tanggal", "Hari", "Kelas", "Jam", "Mata Pelajaran", 
+      "Guru Pengampu", "Status", "Keterangan", "Waktu Input"
+    ]);
+    attSheet.getRange("A1:J1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+  }
 }
 `;
 }

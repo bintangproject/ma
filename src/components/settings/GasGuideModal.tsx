@@ -1,7 +1,22 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { getGoogleAppsScriptTemplateCode } from '../../services/sheetsApi';
-import { Code, Copy, Check, ExternalLink, HelpCircle, GitBranch, Cloud } from 'lucide-react';
+import { 
+  Code, 
+  Copy, 
+  Check, 
+  ExternalLink, 
+  HelpCircle, 
+  GitBranch, 
+  Cloud,
+  BookOpen,
+  Calendar,
+  Printer,
+  Share2,
+  PlusCircle,
+  Database,
+  CheckCircle2
+} from 'lucide-react';
 
 interface GasGuideModalProps {
   isOpen: boolean;
@@ -9,7 +24,7 @@ interface GasGuideModalProps {
 }
 
 export const GasGuideModal: React.FC<GasGuideModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'gas' | 'vercel'>('gas');
+  const [activeTab, setActiveTab] = useState<'usage' | 'gas' | 'vercel'>('usage');
   const [copiedCode, setCopiedCode] = useState(false);
 
   const gasCode = getGoogleAppsScriptTemplateCode();
@@ -28,43 +43,159 @@ export const GasGuideModal: React.FC<GasGuideModalProps> = ({ isOpen, onClose })
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Panduan Google Apps Script & Deploy Vercel"
-      subtitle="Langkah mudah menghubungkan Google Sheets dan deploy ke Vercel via GitHub"
+      title="Panduan Lengkap SIMPRES Kurikulum"
+      subtitle="Panduan penggunaan harian, koneksi Google Sheets, dan deployment Vercel"
       icon={<HelpCircle size={20} />}
       maxWidth="3xl"
     >
       <div className="space-y-4">
         
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-200">
+        <div className="flex border-b border-slate-200 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('usage')}
+            className={`flex items-center gap-1.5 py-2.5 px-3.5 text-xs font-bold border-b-2 whitespace-nowrap transition-all ${
+              activeTab === 'usage'
+                ? 'border-sky-600 text-sky-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <BookOpen size={14} />
+            <span>1. Cara Penggunaan Aplikasi</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setActiveTab('gas')}
-            className={`flex items-center gap-2 py-2.5 px-4 text-xs font-bold border-b-2 transition-all ${
+            className={`flex items-center gap-1.5 py-2.5 px-3.5 text-xs font-bold border-b-2 whitespace-nowrap transition-all ${
               activeTab === 'gas'
                 ? 'border-sky-600 text-sky-700'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Code size={15} />
-            <span>1. Google Sheets & Apps Script (Database)</span>
+            <Code size={14} />
+            <span>2. Koneksi Google Sheets (Database)</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('vercel')}
-            className={`flex items-center gap-2 py-2.5 px-4 text-xs font-bold border-b-2 transition-all ${
+            className={`flex items-center gap-1.5 py-2.5 px-3.5 text-xs font-bold border-b-2 whitespace-nowrap transition-all ${
               activeTab === 'vercel'
                 ? 'border-sky-600 text-sky-700'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Cloud size={15} />
-            <span>2. Panduan Deploy ke GitHub & Vercel</span>
+            <Cloud size={14} />
+            <span>3. Deploy ke GitHub & Vercel</span>
           </button>
         </div>
 
-        {/* TAB 1: GOOGLE APPS SCRIPT */}
+        {/* TAB 1: PANDUAN PENGGUNAAN APLIKASI */}
+        {activeTab === 'usage' && (
+          <div className="space-y-3.5 text-xs text-slate-700 leading-relaxed">
+            
+            <div className="bg-sky-50 border border-sky-200/80 rounded-xl p-3.5">
+              <h4 className="font-bold text-sky-950 text-sm mb-1 flex items-center gap-1.5">
+                <CheckCircle2 size={16} className="text-sky-700" />
+                <span>Alur Kerja Cepat untuk Staff Kurikulum & Guru Piket</span>
+              </h4>
+              <p className="text-slate-600 text-[11px]">
+                Aplikasi ini dirancang khusus untuk memudahkan administrasi kurikulum MA Darul Lughah Wal Karomah Kraksaan. Berikut 4 langkah utama penggunaannya:
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              
+              {/* Langkah 1: Input Presensi */}
+              <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2 hover:border-sky-300 transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center font-bold text-[10px]">1</span>
+                  <h5 className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <PlusCircle size={14} className="text-sky-600" />
+                    <span>Input Presensi Cepat (Otomatis Hadir Semua)</span>
+                  </h5>
+                </div>
+                <p className="text-slate-600 text-[11px]">
+                  Klik tombol <strong>"Input Presensi Hari Ini"</strong>. Sistem otomatis memuat seluruh jadwal KBM hari tersebut dan <strong>semua guru langsung terset HADIR</strong>. Anda hanya perlu mengubah status guru yang berhalangan:
+                </p>
+                <div className="flex flex-wrap gap-1 text-[10px] font-semibold">
+                  <span className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">Hadir</span>
+                  <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">Izin</span>
+                  <span className="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">Sakit</span>
+                  <span className="bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded border border-rose-200">Alpa</span>
+                  <span className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200">Tugas Dinas</span>
+                </div>
+                <p className="text-slate-500 text-[10px]">
+                  Setelah itu klik <strong>"Simpan Daftar Hadir Hari Ini"</strong>. Semua sesi tersimpan sekaligus!
+                </p>
+              </div>
+
+              {/* Langkah 2: Filter Rentang Tanggal */}
+              <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2 hover:border-sky-300 transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center font-bold text-[10px]">2</span>
+                  <h5 className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <Calendar size={14} className="text-sky-600" />
+                    <span>Filter Periode Fleksibel</span>
+                  </h5>
+                </div>
+                <p className="text-slate-600 text-[11px]">
+                  Pilih preset cepat: <strong>Hari Ini</strong>, <strong>Kemarin</strong>, <strong>Minggu Ini</strong>, atau <strong>Bulan Ini</strong>.
+                </p>
+                <p className="text-slate-600 text-[11px]">
+                  Atau isi tanggal di kolom <strong>"Dari"</strong> s.d. <strong>"Sampai"</strong> untuk rekap khusus (misal 1 Oktober s.d. 15 Oktober). Data langsung tersaring otomatis!
+                </p>
+              </div>
+
+              {/* Langkah 3: Ekspor PDF Resmi */}
+              <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2 hover:border-sky-300 transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center font-bold text-[10px]">3</span>
+                  <h5 className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <Printer size={14} className="text-sky-600" />
+                    <span>Cetak Laporan PDF Resmi</span>
+                  </h5>
+                </div>
+                <p className="text-slate-600 text-[11px]">
+                  Klik tombol <strong>"Laporan PDF"</strong>. Dokumen sudah ber-<strong>KOP SURAT RESMI</strong> madrasah lengkap dengan logo dan tanda tangan Kepala Madrasah & Waka Kurikulum.
+                </p>
+                <p className="text-slate-600 text-[11px]">
+                  Tersedia 2 format: <em>Rekap Akumulasi Per Guru</em> (bulanan) atau <em>Log Jurnal Rinci</em> (harian). Klik "Cetak / Simpan PDF".
+                </p>
+              </div>
+
+              {/* Langkah 4: Share ke WhatsApp */}
+              <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2 hover:border-sky-300 transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center font-bold text-[10px]">4</span>
+                  <h5 className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <Share2 size={14} className="text-emerald-600" />
+                    <span>Bagikan Rekap ke WhatsApp</span>
+                  </h5>
+                </div>
+                <p className="text-slate-600 text-[11px]">
+                  Klik tombol <strong>"Share WA"</strong> untuk melihat format pesan rapi berisi persentase kehadiran dan daftar ustadz/ustadzah yang berhalangan hadir.
+                </p>
+                <p className="text-slate-600 text-[11px]">
+                  Klik <strong>"Salin Teks"</strong> atau <strong>"Buka WhatsApp Sekarang"</strong> untuk dikirim langsung ke grup ustadz/ustadzah.
+                </p>
+              </div>
+
+            </div>
+
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-[11px] flex items-start gap-2">
+              <span className="font-bold">💡 Tips:</span>
+              <span>
+                Anda bisa mengganti tampilan antara <strong>"Daftar Log Presensi"</strong> (catatan sesi mengajar) dan <strong>"Rekap Akumulasi Per Guru"</strong> (persentase kehadiran & disiplin guru) menggunakan tombol tab di bawah filter.
+              </span>
+            </div>
+
+          </div>
+        )}
+
+        {/* TAB 2: GOOGLE APPS SCRIPT */}
         {activeTab === 'gas' && (
           <div className="space-y-4 text-xs text-slate-700 leading-relaxed">
             
@@ -114,7 +245,7 @@ export const GasGuideModal: React.FC<GasGuideModalProps> = ({ isOpen, onClose })
           </div>
         )}
 
-        {/* TAB 2: GITHUB & VERCEL */}
+        {/* TAB 3: GITHUB & VERCEL */}
         {activeTab === 'vercel' && (
           <div className="space-y-4 text-xs text-slate-700 leading-relaxed">
             
@@ -177,3 +308,4 @@ export const GasGuideModal: React.FC<GasGuideModalProps> = ({ isOpen, onClose })
     </Modal>
   );
 };
+

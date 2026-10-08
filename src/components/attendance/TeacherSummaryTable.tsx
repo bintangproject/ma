@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TeacherSummary } from '../../types/attendance';
-import { Award, UserCheck, AlertTriangle } from 'lucide-react';
+import { UserCheck, AlertTriangle } from 'lucide-react';
 
 interface TeacherSummaryTableProps {
   summaries: TeacherSummary[];
@@ -15,7 +15,7 @@ export const TeacherSummaryTable: React.FC<TeacherSummaryTableProps> = ({
 
   const filtered = summaries.filter(s =>
     s.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.mataPelajaran.toLowerCase().includes(searchTerm.toLowerCase())
+    (s.kodeGuru && s.kodeGuru.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -29,13 +29,13 @@ export const TeacherSummaryTable: React.FC<TeacherSummaryTableProps> = ({
             <span>Rekapitulasi Kehadiran Akumulasi Per Pengajar</span>
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Daftar persentase kedisiplinan dan jumlah jam KBM guru pada periode terpilih
+            Daftar persentase kehadiran dan jumlah jam KBM guru pada periode terpilih
           </p>
         </div>
 
         <input
           type="text"
-          placeholder="Cari guru di rekap..."
+          placeholder="Cari nama guru..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="text-xs px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-500 w-full sm:w-56"
@@ -48,15 +48,13 @@ export const TeacherSummaryTable: React.FC<TeacherSummaryTableProps> = ({
           <thead>
             <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-600 font-semibold uppercase tracking-wider">
               <th className="py-2.5 px-3.5 text-center w-12">No</th>
-              <th className="py-2.5 px-3.5">Nama Guru & NIP</th>
-              <th className="py-2.5 px-3.5">Mata Pelajaran</th>
+              <th className="py-2.5 px-3.5">Nama Guru</th>
               <th className="py-2.5 px-2.5 text-center font-bold">Total Sesi</th>
-              <th className="py-2.5 px-2.5 text-center text-emerald-700 bg-emerald-50/50">H</th>
-              <th className="py-2.5 px-2.5 text-center text-blue-700 bg-blue-50/50">I</th>
-              <th className="py-2.5 px-2.5 text-center text-amber-700 bg-amber-50/50">S</th>
-              <th className="py-2.5 px-2.5 text-center text-rose-700 bg-rose-50/50">A</th>
-              <th className="py-2.5 px-2.5 text-center text-indigo-700">TD</th>
-              <th className="py-2.5 px-2.5 text-center text-orange-700">T</th>
+              <th className="py-2.5 px-2.5 text-center text-emerald-700 bg-emerald-50/50">H (Hadir)</th>
+              <th className="py-2.5 px-2.5 text-center text-blue-700 bg-blue-50/50">I (Izin)</th>
+              <th className="py-2.5 px-2.5 text-center text-amber-700 bg-amber-50/50">S (Sakit)</th>
+              <th className="py-2.5 px-2.5 text-center text-rose-700 bg-rose-50/50">A (Alpa)</th>
+              <th className="py-2.5 px-2.5 text-center text-indigo-700">TD (Dinas)</th>
               <th className="py-2.5 px-3.5 text-center font-bold">Persentase</th>
               <th className="py-2.5 px-3.5 text-center">Status</th>
             </tr>
@@ -65,7 +63,7 @@ export const TeacherSummaryTable: React.FC<TeacherSummaryTableProps> = ({
           <tbody className="divide-y divide-slate-100">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={12} className="py-8 text-center text-slate-400">
+                <td colSpan={10} className="py-8 text-center text-slate-400">
                   Tidak ada guru yang ditemukan pada periode ini.
                 </td>
               </tr>
@@ -92,13 +90,6 @@ export const TeacherSummaryTable: React.FC<TeacherSummaryTableProps> = ({
                       >
                         {item.nama}
                       </button>
-                      <div className="text-[11px] text-slate-400 font-mono">
-                        {item.nip !== '-' ? item.nip : 'Non-PNS / GTT'}
-                      </div>
-                    </td>
-
-                    <td className="py-2.5 px-3.5 text-slate-700">
-                      {item.mataPelajaran}
                     </td>
 
                     <td className="py-2.5 px-2.5 text-center font-bold text-slate-800">
@@ -127,10 +118,6 @@ export const TeacherSummaryTable: React.FC<TeacherSummaryTableProps> = ({
 
                     <td className="py-2.5 px-2.5 text-center text-indigo-700">
                       {item.tugasDinas || '-'}
-                    </td>
-
-                    <td className="py-2.5 px-2.5 text-center text-orange-700">
-                      {item.terlambat || '-'}
                     </td>
 
                     <td className="py-2.5 px-3.5 text-center">
@@ -182,7 +169,6 @@ export const TeacherSummaryTable: React.FC<TeacherSummaryTableProps> = ({
           <span><strong>S:</strong> Sakit</span>
           <span><strong>A:</strong> Alpa</span>
           <span><strong>TD:</strong> Tugas Dinas</span>
-          <span><strong>T:</strong> Terlambat</span>
         </div>
         <span>Total Pengajar: {filtered.length} Orang</span>
       </div>

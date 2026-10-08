@@ -1,7 +1,7 @@
 import React from 'react';
 import { AttendanceStatus } from '../../types/attendance';
 import { STATUS_CONFIG } from '../../utils/formatters';
-import { CheckCircle2, AlertCircle, FileText, Stethoscope, Briefcase, Clock } from 'lucide-react';
+import { CheckCircle2, AlertCircle, FileText, Stethoscope, Briefcase } from 'lucide-react';
 
 interface StatusBadgeProps {
   status: AttendanceStatus;
@@ -24,7 +24,6 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       case 'IZIN': return <FileText size={iconSize} className="stroke-[2.5]" />;
       case 'ALPA': return <AlertCircle size={iconSize} className="stroke-[2.5]" />;
       case 'TUGAS_DINAS': return <Briefcase size={iconSize} className="stroke-[2.5]" />;
-      case 'TERLAMBAT': return <Clock size={iconSize} className="stroke-[2.5]" />;
       default: return null;
     }
   };
