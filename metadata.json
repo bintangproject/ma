@@ -1,0 +1,6 @@
+{
+  "name": "Rekap Kehadiran Pengajar MA Darul Lughah Wal Karomah",
+  "description": "Sistem Rekapitulasi Kehadiran Guru & Pengajar MA Darul Lughah Wal Karomah Kraksaan berbasis Google Sheets & Apps Script dengan ekspor PDF.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
