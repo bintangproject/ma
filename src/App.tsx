@@ -847,6 +847,7 @@ export default function App() {
         schedules={schedules}
         config={config}
         guruPiketHistory={guruPiketHistory}
+        jadwalPiket={jadwalPiket}
       />
 
       {/* MASTER DATA TEACHERS MODAL (VIEW ONLY) */}

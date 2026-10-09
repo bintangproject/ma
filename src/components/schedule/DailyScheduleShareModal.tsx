@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Modal } from '../common/Modal';
 import { DayScheduleMap, InstitutionConfig, GuruPiketRecord } from '../../types/attendance';
-import { DAFTAR_HARI } from '../../data/defaultData';
+import { DAFTAR_HARI, DEFAULT_JADWAL_PIKET } from '../../data/defaultData';
 import { formatIndonesianDate, getIndonesianDayName } from '../../utils/formatters';
 import { generateWhatsAppDailyScheduleMessage } from '../../utils/exportUtils';
 import { Calendar, Copy, Check, Share2, Search, BookOpen, Clock, School } from 'lucide-react';
@@ -12,6 +12,7 @@ interface DailyScheduleShareModalProps {
   schedules: DayScheduleMap;
   config: InstitutionConfig;
   guruPiketHistory?: GuruPiketRecord[];
+  jadwalPiket?: Record<string, string[]>;
 }
 
 export const DailyScheduleShareModal: React.FC<DailyScheduleShareModalProps> = ({
@@ -20,6 +21,7 @@ export const DailyScheduleShareModal: React.FC<DailyScheduleShareModalProps> = (
   schedules,
   config,
   guruPiketHistory = [],
+  jadwalPiket = {},
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(todayStr);
@@ -29,8 +31,25 @@ export const DailyScheduleShareModal: React.FC<DailyScheduleShareModalProps> = (
   const [copied, setCopied] = useState(false);
 
   const piketToday = useMemo(() => {
-    return guruPiketHistory.find(p => p.tanggal === selectedDate) || null;
-  }, [guruPiketHistory, selectedDate]);
+    const existing = guruPiketHistory.find(p => p.tanggal === selectedDate);
+    if (existing) return existing;
+    const defaultList = jadwalPiket[selectedHari] || DEFAULT_JADWAL_PIKET[selectedHari] || [];
+    if (defaultList.length === 0) return null;
+    return {
+      id: `pkt-default-${selectedDate}`,
+      tanggal: selectedDate,
+      hari: selectedHari,
+      piket1: defaultList[0] || '',
+      status1: 'HADIR' as const,
+      piket2: defaultList[1] || '',
+      status2: 'HADIR' as const,
+      piket3: defaultList[2] || '',
+      status3: 'HADIR' as const,
+      piket4: defaultList[3] || '',
+      status4: 'HADIR' as const,
+      keterangan: '',
+    };
+  }, [guruPiketHistory, selectedDate, selectedHari, jadwalPiket]);
 
   const messageText = generateWhatsAppDailyScheduleMessage(selectedHari, selectedDate, schedules, config, piketToday);
 
