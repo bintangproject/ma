@@ -25,8 +25,8 @@ export const DailyScheduleShareModal: React.FC<DailyScheduleShareModalProps> = (
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(todayStr);
-  const detectedHari = getIndonesianDayName(todayStr);
-  const [selectedHari, setSelectedHari] = useState(DAFTAR_HARI.includes(detectedHari) ? detectedHari : 'Sabtu');
+  const detectedHari = getIndonesianDayName(selectedDate);
+  const selectedHari = DAFTAR_HARI.includes(detectedHari) ? detectedHari : 'Sabtu';
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -101,44 +101,27 @@ export const DailyScheduleShareModal: React.FC<DailyScheduleShareModalProps> = (
     >
       <div className="space-y-4">
         
-        {/* Controls Bar: Pilih Hari & Tanggal */}
-        <div className="bg-sky-50/70 p-3.5 rounded-xl border border-sky-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        {/* Controls Bar: Pilih Tanggal */}
+        <div className="bg-sky-50/70 p-3.5 rounded-xl border border-sky-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           
-          {/* Day Tabs */}
-          <div className="flex flex-wrap items-center gap-1">
-            <span className="text-xs font-bold text-slate-600 mr-1.5 flex items-center gap-1">
-              <Calendar size={13} className="text-sky-600" />
-              Pilih Hari:
-            </span>
-            {DAFTAR_HARI.map(h => (
-              <button
-                key={h}
-                type="button"
-                onClick={() => setSelectedHari(h)}
-                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
-                  selectedHari === h
-                    ? 'bg-sky-600 text-white shadow-2xs'
-                    : 'bg-white text-slate-700 hover:bg-sky-100/70 border border-slate-200'
-                }`}
-              >
-                {h}
-              </button>
-            ))}
-          </div>
-
-          {/* Date Picker */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500">Tanggal:</span>
+            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <Calendar size={14} className="text-sky-600" />
+              Pilih Tanggal:
+            </span>
             <input
               type="date"
               value={selectedDate}
-              onChange={(e) => {
-                setSelectedDate(e.target.value);
-                const d = getIndonesianDayName(e.target.value);
-                if (DAFTAR_HARI.includes(d)) setSelectedHari(d);
-              }}
-              className="text-xs px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 font-medium"
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="text-xs px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 font-medium"
             />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500">Hari terdeteksi:</span>
+            <span className="text-xs font-extrabold text-sky-800 bg-sky-100/80 px-3 py-1 rounded-lg border border-sky-200">
+              {selectedHari}
+            </span>
           </div>
 
         </div>

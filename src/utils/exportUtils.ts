@@ -126,7 +126,7 @@ export function generateWhatsAppMessage(
   text += `✍️ *Tertanda:*\n`;
   text += `Waka Kurikulum : *${config.NAMA_STAFF || 'Ust. Edi Amin, M.Hum.'}*\n`;
   text += `Kepala Madrasah: *${config.NAMA_KEPALA || 'Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd.'}*\n\n`;
-  text += `_Dikelola melalui SIRAMA (Sistem Informasi Rekap & Absensi Pengajar)_`;
+  text += `_Dikelola melalui SIRAMA (Sistem Informasi Rekap & Absensi Pengajar Madrasah)_`;
 
   return text;
 }
@@ -258,7 +258,7 @@ export function generateWhatsAppApelMessage(
 
   text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
   text += `_Disampaikan oleh Staff Kurikulum & Kedisiplinan Madrasah._\n`;
-  text += `_SIRAMA (Sistem Informasi Rekap dan Absensi Pengajar)_`;
+  text += `_SIRAMA (Sistem Informasi Rekap dan Absensi Pengajar Madrasah)_`;
 
   return text;
 }
