@@ -280,7 +280,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           <style>
             @page {
               size: A4 portrait;
-              margin: 0;
+              margin: 10mm 12mm 12mm 12mm;
             }
             * {
               box-sizing: border-box;
