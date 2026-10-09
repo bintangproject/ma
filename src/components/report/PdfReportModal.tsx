@@ -48,7 +48,11 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     ? formatIndonesianDate(filterState.startDate)
     : `${formatIndonesianDate(filterState.startDate, false)} s.d. ${formatIndonesianDate(filterState.endDate)}`;
 
-  const todayStr = formatIndonesianDate(new Date().toISOString().split('T')[0]);
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const todayStr = formatIndonesianDate(`${yyyy}-${mm}-${dd}`);
 
   const lembagaName = config.NAMA_LEMBAGA || 'MADRASAH ALIYAH DARUL LUGHAH WAL KAROMAH';
   const yayasanName = config.NAMA_YAYASAN || 'YAYASAN PONDOK PESANTREN DARUL LUGHAH WAL KAROMAH';
@@ -276,7 +280,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           <style>
             @page {
               size: A4 portrait;
-              margin: 10mm 12mm 12mm 12mm;
+              margin: 0;
             }
             * {
               box-sizing: border-box;
@@ -285,7 +289,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               color-adjust: exact !important;
             }
             body {
-              margin: 0;
+              margin: 10mm 12mm 12mm 12mm;
               padding: 0;
               font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
               color: #0f172a !important;
