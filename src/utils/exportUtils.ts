@@ -138,13 +138,27 @@ export function generateWhatsAppDailyScheduleMessage(
   hari: string,
   tanggalStr: string,
   schedules: DayScheduleMap,
-  config: InstitutionConfig
+  config: InstitutionConfig,
+  piketToday?: GuruPiketRecord | null
 ): string {
   const daySchedule = schedules[hari] || [];
   const institutionName = (config.SINGKATAN || config.NAMA_LEMBAGA || 'MA DARUL LUGHAH WAL KAROMAH').toUpperCase();
 
   let text = `📚 *JADWAL KBM PENGAJAR ${institutionName}*\n`;
   text += `🗓️ *Hari ${hari}, ${formatIndonesianDate(tanggalStr, false)}*\n`;
+
+  // Sisipkan Guru Piket jika ada
+  if (piketToday && (piketToday.piket1 || piketToday.piket2 || piketToday.piket3 || piketToday.piket4)) {
+    text += `\n🛡️ *GURU PIKET HARI INI:*\n`;
+    const piketItems = [piketToday.piket1, piketToday.piket2, piketToday.piket3, piketToday.piket4].filter(Boolean);
+    piketItems.forEach((p, idx) => {
+      text += `${idx + 1}. ${p}\n`;
+    });
+    if (piketToday.keterangan) {
+      text += `   _(Catatan: ${piketToday.keterangan})_\n`;
+    }
+  }
+
   text += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
   if (daySchedule.length === 0) {
@@ -170,7 +184,7 @@ export function generateWhatsAppDailyScheduleMessage(
   }
 
   text += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-  text += `_Mohon bapak/ibu pengajar rawuh tepat waktu. Semoga KBM hari ini lancar dan berkah. Aamiin._\n`;
+  text += `_Diharap kepada segenap pengajar untuk hadir tepat waktu. Semoga KBM hari ini lancar dan berkah. Amiin._\n`;
   text += `_Waka Kurikulum: ${config.NAMA_STAFF || 'Ust. Edi Amin, M.Hum.'}_`;
 
   return text;

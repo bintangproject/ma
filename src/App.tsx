@@ -846,6 +846,7 @@ export default function App() {
         onClose={() => setIsJadwalModalOpen(false)}
         schedules={schedules}
         config={config}
+        guruPiketHistory={guruPiketHistory}
       />
 
       {/* MASTER DATA TEACHERS MODAL (VIEW ONLY) */}

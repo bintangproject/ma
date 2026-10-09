@@ -38,14 +38,14 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
   const [records, setRecords] = useState<ApelAttendanceRecord[]>([]);
   const [copied, setCopied] = useState(false);
 
-  // Extract Session 1 & 2 teachers for the selected day
-  const session1And2Teachers = useMemo(() => {
+  // Extract Session 1 teachers for the selected day
+  const session1Teachers = useMemo(() => {
     const daySchedule = schedules[selectedHari] || [];
     const set = new Set<string>();
 
     daySchedule.forEach(item => {
       const j = Number(item.jam);
-      if (j === 1 || j === 2) {
+      if (j === 1) {
         const name = (item.guruPengampu || '').trim();
         if (name) {
           set.add(name);
@@ -55,7 +55,7 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
 
     return Array.from(set).map(nama => ({
       nama,
-      jadwalStr: 'Pengajar Sesi 1 & 2',
+      jadwalStr: 'Pengajar Sesi 1',
     }));
   }, [schedules, selectedHari]);
 
@@ -100,8 +100,8 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
       });
     });
 
-    // 2. Pengajar Sesi 1 & 2
-    session1And2Teachers.forEach((t, idx) => {
+    // 2. Pengajar Sesi 1
+    session1Teachers.forEach((t, idx) => {
       // Don't duplicate if already in structural
       const alreadyIn = initialList.some(item => item.nama.toLowerCase() === t.nama.toLowerCase());
       if (!alreadyIn) {
@@ -110,7 +110,7 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
           tanggal: selectedDate,
           hari: selectedHari,
           nama: t.nama,
-          kategori: 'PENGAJAR_SESI_1_2',
+          kategori: 'PENGAJAR_SESI_1',
           jabatanAtauJadwal: t.jadwalStr,
           status: 'HADIR',
           keterangan: '',
@@ -119,7 +119,7 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
     });
 
     setRecords(initialList);
-  }, [selectedDate, selectedHari, isOpen, existingApelRecords, session1And2Teachers, strukturalList]);
+  }, [selectedDate, selectedHari, isOpen, existingApelRecords, session1Teachers, strukturalList]);
 
   const handleUpdateStatus = (id: string, status: ApelStatus) => {
     setRecords(prev => prev.map(r => r.id === id ? { ...r, status } : r));
@@ -170,7 +170,7 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Presensi Pengajar Wajib Apel Pagi"
-      subtitle="Presensi apel pagi untuk Struktural Madar dan Pengajar Sesi 1 & 2 hari ini"
+      subtitle="Presensi apel pagi untuk Struktural Madar dan Pengajar Sesi 1 hari ini"
       icon={<Award size={20} className="text-amber-600" />}
       maxWidth="3xl"
     >

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Modal } from '../common/Modal';
-import { DayScheduleMap, InstitutionConfig } from '../../types/attendance';
+import { DayScheduleMap, InstitutionConfig, GuruPiketRecord } from '../../types/attendance';
 import { DAFTAR_HARI } from '../../data/defaultData';
 import { formatIndonesianDate, getIndonesianDayName } from '../../utils/formatters';
 import { generateWhatsAppDailyScheduleMessage } from '../../utils/exportUtils';
@@ -11,6 +11,7 @@ interface DailyScheduleShareModalProps {
   onClose: () => void;
   schedules: DayScheduleMap;
   config: InstitutionConfig;
+  guruPiketHistory?: GuruPiketRecord[];
 }
 
 export const DailyScheduleShareModal: React.FC<DailyScheduleShareModalProps> = ({
@@ -18,6 +19,7 @@ export const DailyScheduleShareModal: React.FC<DailyScheduleShareModalProps> = (
   onClose,
   schedules,
   config,
+  guruPiketHistory = [],
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(todayStr);
@@ -26,7 +28,11 @@ export const DailyScheduleShareModal: React.FC<DailyScheduleShareModalProps> = (
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const messageText = generateWhatsAppDailyScheduleMessage(selectedHari, selectedDate, schedules, config);
+  const piketToday = useMemo(() => {
+    return guruPiketHistory.find(p => p.tanggal === selectedDate) || null;
+  }, [guruPiketHistory, selectedDate]);
+
+  const messageText = generateWhatsAppDailyScheduleMessage(selectedHari, selectedDate, schedules, config, piketToday);
 
   const daySchedule = schedules[selectedHari] || [];
 
