@@ -230,8 +230,8 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
               </span>
             )}
           </div>
-          <span className="text-[11px] text-slate-400">
-            Pukul 06.45 - 07.15 WIB
+          <span className="text-[11px] text-slate-400 font-medium">
+            {selectedHari === 'Ahad' ? 'Pukul 08.20 - 08.30 WIB' : 'Pukul 09.20 - 09.30 WIB'}
           </span>
         </div>
 

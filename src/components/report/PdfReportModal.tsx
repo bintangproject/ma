@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Modal } from '../common/Modal';
 import { AttendanceRecord, InstitutionConfig, FilterState } from '../../types/attendance';
-import { MadarLogo, parseDirectImageUrl } from '../common/MadarLogo';
+import { MadarLogo, parseDirectImageUrl, getAlternateRawUrl } from '../common/MadarLogo';
 import { 
   formatIndonesianDate, 
   formatIndonesianShortDate, 
@@ -269,7 +269,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${judulLaporan} - ${config.NAMA_APLIKASI || 'SIRAMA'}</title>
+          <title></title>
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           ${styleTags}
@@ -469,8 +469,23 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
             <div className="border-b-[3px] border-double border-slate-900 pb-3 mb-5">
               <div className="flex items-center justify-between gap-4">
                 {/* Logo Kiri: Logo Resmi Lembaga Madrasah */}
-                <div className="w-20 flex-shrink-0 flex justify-center items-center">
-                  <MadarLogo size="lg" logoUrl={base64Madrasah || logoMadrasah} />
+                <div className="w-20 h-20 flex-shrink-0 flex justify-center items-center">
+                  <img
+                    src={base64Madrasah || parseDirectImageUrl(logoMadrasah)}
+                    alt="Logo Madrasah"
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
+                    className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-sm select-none"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      const alt = getAlternateRawUrl(logoMadrasah);
+                      if (alt && target.src !== alt) {
+                        target.src = alt;
+                      } else {
+                        target.src = APP_CONFIG.DEFAULT_LOGO_URL;
+                      }
+                    }}
+                  />
                 </div>
 
                 {/* Kop Teks Tengah */}
@@ -490,8 +505,23 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                 </div>
 
                 {/* Logo Kanan: Logo Web App SIRAMA */}
-                <div className="w-20 flex-shrink-0 flex justify-center items-center">
-                  <MadarLogo size="lg" logoUrl={base64Sirama || logoSirama} />
+                <div className="w-20 h-20 flex-shrink-0 flex justify-center items-center">
+                  <img
+                    src={base64Sirama || parseDirectImageUrl(logoSirama)}
+                    alt="Logo SIRAMA"
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
+                    className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-sm select-none"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      const alt = getAlternateRawUrl(logoSirama);
+                      if (alt && target.src !== alt) {
+                        target.src = alt;
+                      } else {
+                        target.src = APP_CONFIG.DEFAULT_LOGO_SIRAMA_URL;
+                      }
+                    }}
+                  />
                 </div>
               </div>
             </div>

@@ -198,7 +198,8 @@ export function generateWhatsAppApelMessage(
   text += `🏫 *${institutionName}*\n`;
   text += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
   text += `📅 *Hari/Tanggal:* ${hariStr}, ${formatIndonesianDate(tanggalStr, false)}\n`;
-  text += `⏰ *Pelaksanaan:* Pukul 06.45 - 07.15 WIB\n\n`;
+  const apelTime = (hariStr || '').toLowerCase().includes('ahad') ? 'Pukul 08.20 - 08.30 WIB' : 'Pukul 09.20 - 09.30 WIB';
+  text += `⏰ *Pelaksanaan:* ${apelTime}\n\n`;
 
   text += `📊 *RINGKASAN KEHADIRAN APEL:*\n`;
   text += `• Total Wajib Apel : *${total} orang*\n`;
