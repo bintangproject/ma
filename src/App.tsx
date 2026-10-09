@@ -292,15 +292,28 @@ export default function App() {
     saveStoredRecords(updated);
 
     setSyncNotice({
-      type: 'success',
-      message: `Berhasil menyimpan daftar hadir tanggal ${formatIndonesianDate(tanggal)} (${newDayRecords.length} sesi KBM)!`,
+      type: 'info',
+      message: `Menyimpan daftar hadir tanggal ${formatIndonesianDate(tanggal)} (${newDayRecords.length} sesi KBM)...`,
     });
 
     if (config.gasUrl) {
       postBulkDayAttendance(config.gasUrl, tanggal, newDayRecords).then(res => {
         if (!res.success) {
-          console.warn('Background GAS sync error:', res.message);
+          setSyncNotice({
+            type: 'error',
+            message: `Tersimpan di perangkat lokal, namun gagal ke Spreadsheet: ${res.message}`,
+          });
+        } else {
+          setSyncNotice({
+            type: 'success',
+            message: `Daftar hadir tanggal ${formatIndonesianDate(tanggal)} (${newDayRecords.length} sesi) berhasil disimpan ke Google Sheets!`,
+          });
         }
+      });
+    } else {
+      setSyncNotice({
+        type: 'success',
+        message: `Berhasil menyimpan daftar hadir tanggal ${formatIndonesianDate(tanggal)} (${newDayRecords.length} sesi KBM)!`,
       });
     }
   };
@@ -312,16 +325,24 @@ export default function App() {
     setGuruPiketHistory(updated);
     saveStoredGuruPiket(updated);
 
-    setSyncNotice({
-      type: 'success',
-      message: `Guru Piket hari ${record.hari}, ${formatIndonesianDate(record.tanggal)} berhasil disimpan & diarsipkan!`,
-    });
-
     if (config.gasUrl) {
       postBulkGuruPiket(config.gasUrl, record).then(res => {
         if (!res.success) {
-          console.warn('Background GAS piket sync error:', res.message);
+          setSyncNotice({
+            type: 'error',
+            message: `Piket tersimpan di lokal, namun gagal ke Spreadsheet: ${res.message}`,
+          });
+        } else {
+          setSyncNotice({
+            type: 'success',
+            message: `Guru Piket hari ${record.hari}, ${formatIndonesianDate(record.tanggal)} berhasil disimpan ke Google Sheets!`,
+          });
         }
+      });
+    } else {
+      setSyncNotice({
+        type: 'success',
+        message: `Guru Piket hari ${record.hari}, ${formatIndonesianDate(record.tanggal)} berhasil disimpan!`,
       });
     }
   };
@@ -333,16 +354,24 @@ export default function App() {
     setRekapApelHistory(updated);
     saveStoredRekapApel(updated);
 
-    setSyncNotice({
-      type: 'success',
-      message: `Presensi Apel Pagi tanggal ${formatIndonesianDate(tanggal)} (${apelRecords.length} orang) berhasil disimpan!`,
-    });
-
     if (config.gasUrl) {
       postBulkRekapApel(config.gasUrl, tanggal, apelRecords).then(res => {
         if (!res.success) {
-          console.warn('Background GAS apel sync error:', res.message);
+          setSyncNotice({
+            type: 'error',
+            message: `Presensi Apel tersimpan di lokal, namun gagal ke Spreadsheet: ${res.message}`,
+          });
+        } else {
+          setSyncNotice({
+            type: 'success',
+            message: `Presensi Apel Pagi tanggal ${formatIndonesianDate(tanggal)} (${apelRecords.length} orang) berhasil disimpan ke Google Sheets!`,
+          });
         }
+      });
+    } else {
+      setSyncNotice({
+        type: 'success',
+        message: `Presensi Apel Pagi tanggal ${formatIndonesianDate(tanggal)} (${apelRecords.length} orang) berhasil disimpan!`,
       });
     }
   };

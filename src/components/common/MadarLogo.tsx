@@ -124,6 +124,7 @@ export const MadarLogo: React.FC<MadarLogoProps> = ({
         <img
           src={currentSrc}
           alt="Logo MA Darul Lughah Wal Karomah"
+          crossOrigin="anonymous"
           referrerPolicy="no-referrer"
           onError={handleImageError}
           className={`${sizeMap[size]} object-contain flex-shrink-0 drop-shadow-sm select-none`}

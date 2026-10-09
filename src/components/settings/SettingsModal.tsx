@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { InstitutionConfig } from '../../types/attendance';
-import { Settings, Save, RefreshCw, CheckCircle2, AlertCircle, RotateCcw, Database, GitBranch, Copy, Check, Code, Image as ImageIcon } from 'lucide-react';
-import { fetchFromGoogleSheets } from '../../services/sheetsApi';
+import { Settings, Save, RefreshCw, CheckCircle2, AlertCircle, RotateCcw, Database, GitBranch, Copy, Check, Code, Image as ImageIcon, Download, Sparkles, FileCode2 } from 'lucide-react';
+import { fetchFromGoogleSheets, getGoogleAppsScriptTemplateCode, postSaveConfig, postSetupDatabase } from '../../services/sheetsApi';
 import { MadarLogo, parseDirectImageUrl } from '../common/MadarLogo';
 import { APP_CONFIG } from '../../config/appConfig';
 
@@ -27,6 +27,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedGas, setCopiedGas] = useState(false);
+  const [showGasPreview, setShowGasPreview] = useState(false);
+  const [isSettingUpDb, setIsSettingUpDb] = useState(false);
+  const [setupDbNotice, setSetupDbNotice] = useState<{ success: boolean; message: string } | null>(null);
 
   const handleTestConnection = async () => {
     if (!formData.gasUrl) {
@@ -64,9 +68,59 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setTimeout(() => setCopiedCode(false), 3000);
   };
 
+  const handleCopyGasCode = async () => {
+    const code = getGoogleAppsScriptTemplateCode();
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedGas(true);
+      setTimeout(() => setCopiedGas(false), 3000);
+    } catch {
+      setCopiedGas(true);
+      setTimeout(() => setCopiedGas(false), 3000);
+    }
+  };
+
+  const handleDownloadGasFile = () => {
+    const code = getGoogleAppsScriptTemplateCode();
+    const blob = new Blob([code], { type: 'text/javascript;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'kode_sirama.gs';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleRemoteSetupDb = async () => {
+    if (!formData.gasUrl) {
+      alert('Masukkan dan simpan URL Web App Google Apps Script terlebih dahulu.');
+      return;
+    }
+
+    if (!window.confirm('Inisialisasi seluruh 12 sheet struktur database di Spreadsheet Anda sekarang? Sheet yang belum ada akan dibuat & sheet yang kosong akan dilengkapi.')) {
+      return;
+    }
+
+    setIsSettingUpDb(true);
+    setSetupDbNotice(null);
+
+    const res = await postSetupDatabase(formData.gasUrl);
+    setIsSettingUpDb(false);
+    setSetupDbNotice({
+      success: res.success,
+      message: res.message,
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSaveConfig(formData);
+    
+    // Simpan juga ke sheet Config jika URL terpasang
+    if (formData.gasUrl && formData.gasUrl.trim().startsWith('http')) {
+      postSaveConfig(formData.gasUrl, formData).catch(() => {});
+    }
+
     onClose();
   };
 
@@ -156,6 +210,117 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <span>{testResult.message}</span>
             </div>
           )}
+
+          {/* KOTAK KODE GOOGLE APPS SCRIPT & SETUP DATABASE SPREADSHEET */}
+          <div className="bg-slate-900 text-white rounded-xl p-4 border border-slate-800 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-sky-500/20 text-sky-400 rounded-lg">
+                  <FileCode2 size={18} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>Kode Google Apps Script (kode.gs v2.2) & Setup Database</span>
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30 font-mono">
+                      Fix Save Error & Auto Setup
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-slate-300">
+                    Otomatis membuat 12 sheet & memperbaiki error penyimpanan di Google Spreadsheet
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleCopyGasCode}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-900 bg-sky-400 hover:bg-sky-300 active:bg-sky-500 rounded-lg transition-colors shadow-2xs"
+                  title="Salin seluruh kode script untuk dipaste ke Google Apps Script"
+                >
+                  {copiedGas ? <Check size={13} className="text-emerald-950" /> : <Copy size={13} />}
+                  <span>{copiedGas ? 'Kode Tersalin!' : 'Salin Kode GAS'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadGasFile}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors"
+                  title="Unduh file kode_sirama.gs ke komputer/HP"
+                >
+                  <Download size={13} />
+                  <span>Unduh .gs</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowGasPreview(!showGasPreview)}
+                  className="inline-flex items-center gap-1 px-2 py-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  <Code size={13} />
+                  <span>{showGasPreview ? 'Tutup Kode' : 'Lihat Kode'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Inisialisasi Database Otomatis Button (Jika sudah terpasang URL) */}
+            <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="text-slate-300 text-[11px]">
+                <strong className="text-white">🚀 Setup Otomatis:</strong> Buat & lengkapi 12 Sheet Database langsung dari Web App jika URL Web App sudah aktif.
+              </div>
+              <button
+                type="button"
+                onClick={handleRemoteSetupDb}
+                disabled={isSettingUpDb}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-950 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 disabled:opacity-50 rounded-lg transition-colors"
+              >
+                <Sparkles size={13} className={isSettingUpDb ? 'animate-spin' : ''} />
+                <span>{isSettingUpDb ? 'Sedang Menyiapkan...' : 'Inisialisasi Database Spreadsheet'}</span>
+              </button>
+            </div>
+
+            {setupDbNotice && (
+              <div className={`p-2.5 rounded-lg text-xs flex items-center gap-2 ${
+                setupDbNotice.success 
+                  ? 'bg-emerald-950 text-emerald-200 border border-emerald-800' 
+                  : 'bg-rose-950 text-rose-200 border border-rose-800'
+              }`}>
+                {setupDbNotice.success ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
+                <span>{setupDbNotice.message}</span>
+              </div>
+            )}
+
+            {/* Panduan 4 Langkah Pemasangan */}
+            <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-800/80 text-[11px] text-slate-300 space-y-1.5">
+              <p className="font-semibold text-sky-300">📋 Langkah Pemasangan di Google Spreadsheet:</p>
+              <ol className="list-decimal list-inside space-y-1 text-slate-300 pl-1">
+                <li>Buka Spreadsheet &gt; Menu <strong>Ekstensi</strong> &gt; <strong>Apps Script</strong>.</li>
+                <li>Hapus seluruh isi Code.gs, lalu <strong>Paste</strong> seluruh kode dari tombol "Salin Kode GAS" di atas.</li>
+                <li><strong>Inisialisasi:</strong> Pada dropdown fungsi di atas editor, pilih <code className="bg-slate-800 px-1 py-0.5 rounded text-amber-300 font-mono">setupDatabaseAwal</code> lalu klik tombol ▶ <strong>Jalankan (Run)</strong> sekali saja. Seluruh 12 Sheet database akan otomatis dibuat dan diisi lengkap!</li>
+                <li><strong>Deploy Web App:</strong> Klik tombol biru <strong>Terapkan (Deploy)</strong> &gt; <strong>Penerapan baru (New deployment)</strong> &gt; Pilih Jenis <strong>Aplikasi Web</strong> &gt; Akses: <strong>Siapa saja (Anyone)</strong> &gt; Salin URL berakhiran <code className="text-sky-300">/exec</code> ke kolom di atas.</li>
+              </ol>
+            </div>
+
+            {/* Preview Kode Script */}
+            {showGasPreview && (
+              <div className="mt-3">
+                <div className="flex justify-between items-center pb-1 text-[11px] text-slate-400">
+                  <span>Pratinjau Kode Google Apps Script:</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyGasCode}
+                    className="text-sky-400 hover:underline"
+                  >
+                    Salin Semua
+                  </button>
+                </div>
+                <pre className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-[10px] font-mono text-slate-300 max-h-56 overflow-y-auto overflow-x-auto select-all">
+                  {getGoogleAppsScriptTemplateCode()}
+                </pre>
+              </div>
+            )}
+          </div>
 
           {/* CARA KONEKSI REALTIME SEMUA PERANGKAT */}
           <div className="bg-sky-100/70 border border-sky-300/80 rounded-lg p-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">

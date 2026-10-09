@@ -9,7 +9,7 @@ import {
   calculateTeacherSummaries,
   STATUS_CONFIG 
 } from '../../utils/formatters';
-import { Printer, Download, RefreshCw, FileText } from 'lucide-react';
+import { Printer, Download, RefreshCw, FileText, Image as ImageIcon } from 'lucide-react';
 import { APP_CONFIG } from '../../config/appConfig';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -33,6 +33,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 }) => {
   const [reportType, setReportType] = useState<'summary' | 'detailed'>('summary');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isExportingJpg, setIsExportingJpg] = useState(false);
   const printAreaRef = useRef<HTMLDivElement>(null);
 
   // Filter records within the modal's date range
@@ -64,21 +65,59 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   const logoSirama = config.LOGO_SIRAMA_URL || APP_CONFIG.DEFAULT_LOGO_SIRAMA_URL;
   const logoMadrasah = config.LOGO_URL || APP_CONFIG.DEFAULT_LOGO_URL;
 
-  // 1. Ekspor langsung ke file PDF (.pdf) menggunakan html2canvas & jsPDF agar 100% presisi sesuai preview
+  // Helper untuk render elemen print area ke Canvas HTML5 beresolusi tinggi tanpa terpotong scroll modal
+  const renderDocumentToCanvas = async (el: HTMLElement) => {
+    // Pastikan seluruh gambar selesai termuat
+    const imgs = Array.from(el.querySelectorAll('img'));
+    await Promise.all(
+      imgs.map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(res => {
+          img.onload = res;
+          img.onerror = res;
+        });
+      })
+    );
+
+    return await html2canvas(el, {
+      scale: 2, // 2x crisp retina resolution
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: el.scrollWidth || 1024,
+    });
+  };
+
+  // 1. Ekspor Dokumen ke Format Gambar (JPG)
+  const handleDownloadJpg = async () => {
+    if (!printAreaRef.current) return;
+    setIsExportingJpg(true);
+
+    try {
+      const canvas = await renderDocumentToCanvas(printAreaRef.current);
+      const imgData = canvas.toDataURL('image/jpeg', 0.96);
+      const link = document.createElement('a');
+      link.download = `Laporan_SIRAMA_${filterState.startDate}_sd_${filterState.endDate}.jpg`;
+      link.href = imgData;
+      link.click();
+    } catch (err) {
+      console.error('Error generating JPG:', err);
+      alert('Gagal mengekspor gambar JPG. Anda dapat menggunakan tombol Cetak / PDF Browser.');
+    } finally {
+      setIsExportingJpg(false);
+    }
+  };
+
+  // 2. Ekspor langsung ke file PDF (.pdf) menggunakan html2canvas & jsPDF agar 100% presisi sesuai preview
   const handleDownloadPdf = async () => {
     if (!printAreaRef.current) return;
     setIsExportingPdf(true);
 
     try {
-      const el = printAreaRef.current;
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-      });
-
+      const canvas = await renderDocumentToCanvas(printAreaRef.current);
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -86,42 +125,49 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
         format: 'a4',
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdfWidth = pdf.internal.pageSize.getWidth(); // 210mm
+      const pdfHeight = pdf.internal.pageSize.getHeight(); // 297mm
+      const margin = 8;
+      const contentWidth = pdfWidth - (margin * 2);
+      const contentHeight = (canvas.height * contentWidth) / canvas.width;
 
-      let heightLeft = imgHeight;
-      let position = 0;
+      if (contentHeight <= (pdfHeight - margin * 2)) {
+        // Muat pas dalam 1 halaman
+        pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight);
+      } else {
+        // Multi-halaman A4
+        const pageContentHeight = pdfHeight - (margin * 2);
+        let heightLeft = contentHeight;
+        let position = margin;
 
-      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
+        pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
+        heightLeft -= pageContentHeight;
 
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+        while (heightLeft > 0) {
+          pdf.addPage();
+          position = margin - (contentHeight - heightLeft);
+          pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
+          heightLeft -= pageContentHeight;
+        }
       }
 
       pdf.save(`Laporan_SIRAMA_${filterState.startDate}_sd_${filterState.endDate}.pdf`);
     } catch (err) {
       console.error('Error generating PDF:', err);
-      // Fallback
+      // Fallback ke cetak iframe
       handlePrint();
     } finally {
       setIsExportingPdf(false);
     }
   };
 
-  // 2. Dialog Cetak Browser menggunakan Iframe Terisolasi (mencegah terpotong oleh scrolling modal)
+  // 3. Dialog Cetak Browser menggunakan Iframe Terisolasi dengan menyertakan seluruh stylesheet CSS
   const handlePrint = () => {
     if (!printAreaRef.current) {
       window.print();
       return;
     }
 
-    const content = printAreaRef.current.innerHTML;
     const printIframe = document.createElement('iframe');
     printIframe.style.position = 'fixed';
     printIframe.style.right = '0';
@@ -137,6 +183,13 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
       return;
     }
 
+    // Salin seluruh stylesheet CSS dan style tag dari halaman utama agar Tailwind tampil 100% sempurna
+    const styleTags = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(node => node.outerHTML)
+      .join('\n');
+
+    const content = printAreaRef.current.innerHTML;
+
     doc.open();
     doc.write(`
       <!DOCTYPE html>
@@ -144,29 +197,32 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
         <head>
           <title>${judulLaporan} - ${config.NAMA_APLIKASI || 'SIRAMA'}</title>
           <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          ${styleTags}
           <style>
             @page {
               size: A4 portrait;
-              margin: 10mm 15mm 15mm 15mm;
+              margin: 10mm 12mm 12mm 12mm;
             }
             * {
               box-sizing: border-box;
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
+              color-adjust: exact !important;
             }
             body {
               margin: 0;
               padding: 0;
-              font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-              color: #0f172a;
-              background: #ffffff;
+              font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              color: #0f172a !important;
+              background: #ffffff !important;
               font-size: 11px;
               line-height: 1.35;
             }
             table {
               width: 100%;
               border-collapse: collapse;
-              margin: 10px 0;
+              margin: 8px 0;
             }
             th, td {
               border: 1px solid #1e293b !important;
@@ -178,17 +234,17 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               text-align: center;
             }
             tr {
-              break-inside: avoid;
-              page-break-inside: avoid;
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
             }
             .break-inside-avoid {
-              break-inside: avoid;
-              page-break-inside: avoid;
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
             }
           </style>
         </head>
         <body>
-          <div style="width: 100%; max-width: 800px; margin: 0 auto;">
+          <div style="width: 100%; max-width: 820px; margin: 0 auto; background: #ffffff;">
             ${content}
           </div>
         </body>
@@ -204,8 +260,10 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
         window.print();
       } finally {
         setTimeout(() => {
-          document.body.removeChild(printIframe);
-        }, 1500);
+          if (document.body.contains(printIframe)) {
+            document.body.removeChild(printIframe);
+          }
+        }, 2000);
       }
     }, 600);
   };
@@ -271,13 +329,33 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
             />
           </div>
 
-          {/* Action Buttons: Download PDF & Print */}
-          <div className="flex items-center gap-2">
+          {/* Action Buttons: Download JPG, Download PDF & Print */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleDownloadJpg}
+              disabled={isExportingJpg || isExportingPdf}
+              className="inline-flex items-center gap-1.5 px-3 py-2 font-bold text-white bg-amber-600 hover:bg-amber-700 active:bg-amber-800 disabled:opacity-50 rounded-lg shadow-sm transition-all text-xs"
+              title="Download dokumen langsung sebagai gambar (JPG) resolusi tinggi"
+            >
+              {isExportingJpg ? (
+                <>
+                  <RefreshCw size={14} className="animate-spin" />
+                  <span>Membuat JPG...</span>
+                </>
+              ) : (
+                <>
+                  <ImageIcon size={14} />
+                  <span>Unduh Gambar (JPG)</span>
+                </>
+              )}
+            </button>
+
             <button
               type="button"
               onClick={handleDownloadPdf}
-              disabled={isExportingPdf}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 rounded-lg shadow-sm transition-all"
+              disabled={isExportingPdf || isExportingJpg}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 rounded-lg shadow-sm transition-all text-xs"
               title="Download dokumen langsung sebagai file PDF dengan gambar & header lengkap"
             >
               {isExportingPdf ? (
@@ -296,7 +374,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
             <button
               type="button"
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 font-bold text-white bg-sky-700 hover:bg-sky-800 active:bg-sky-900 rounded-lg shadow-sm transition-all"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 font-bold text-white bg-sky-700 hover:bg-sky-800 active:bg-sky-900 rounded-lg shadow-sm transition-all text-xs"
               title="Cetak via browser atau simpan PDF standar"
             >
               <Printer size={14} />
