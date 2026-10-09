@@ -49,8 +49,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     <div className="bg-white rounded-xl border border-sky-100 shadow-2xs overflow-hidden">
       
       {/* Table Container */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs border-collapse">
+      <div className="overflow-x-auto touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <table className="w-full min-w-[720px] text-left text-xs border-collapse">
           <thead>
             <tr className="bg-gradient-to-r from-sky-50 via-sky-50/50 to-slate-50 border-b border-sky-100 text-slate-700 font-semibold uppercase tracking-wider">
               <th className="py-3 px-3.5 text-center w-12">No</th>

@@ -11,6 +11,7 @@ import {
   Tag 
 } from 'lucide-react';
 import { KELAS_OPTIONS, MAPEL_OPTIONS } from '../../data/defaultData';
+import { getMadarWeeklyRange, getMadarMonthlyRange } from '../../utils/formatters';
 
 interface FilterBarProps {
   filter: FilterState;
@@ -41,20 +42,15 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       startDate = formatISO(y);
       endDate = formatISO(y);
     } else if (preset === 'this_week') {
-      // Current week (Monday to Saturday)
-      const day = today.getDay(); // 0 is Sun, 1 is Mon
-      const diffToMon = day === 0 ? -6 : 1 - day;
-      const monday = new Date(today);
-      monday.setDate(today.getDate() + diffToMon);
-      const saturday = new Date(monday);
-      saturday.setDate(monday.getDate() + 5);
-      startDate = formatISO(monday);
-      endDate = formatISO(saturday);
+      // Madrasah cycle: Sabtu s.d. Kamis
+      const range = getMadarWeeklyRange(today);
+      startDate = range.startDate;
+      endDate = range.endDate;
     } else if (preset === 'this_month') {
-      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      startDate = formatISO(firstDay);
-      endDate = formatISO(lastDay);
+      // Madrasah cycle: 26 bulan lalu s.d. 25 bulan ini
+      const range = getMadarMonthlyRange(today);
+      startDate = range.startDate;
+      endDate = range.endDate;
     } else if (preset === 'all') {
       startDate = '2026-01-01';
       endDate = '2026-12-31';
@@ -69,11 +65,11 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   };
 
   const handleReset = () => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const monthlyRange = getMadarMonthlyRange(new Date());
     onChangeFilter({
       preset: 'this_month',
-      startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-      endDate: todayStr,
+      startDate: monthlyRange.startDate,
+      endDate: monthlyRange.endDate,
       searchQuery: '',
       selectedGuru: '',
       selectedKelas: '',
@@ -122,25 +118,27 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           <button
             type="button"
             onClick={() => applyPreset('this_week')}
+            title="Siklus Mingguan Madrasah: Sabtu s.d. Kamis"
             className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
               filter.preset === 'this_week'
                 ? 'bg-sky-600 text-white shadow-2xs'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            Minggu Ini
+            Minggu Ini (Sabtu–Kamis)
           </button>
 
           <button
             type="button"
             onClick={() => applyPreset('this_month')}
+            title="Siklus Bulanan Madrasah: Tgl 26 s.d. 25"
             className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
               filter.preset === 'this_month'
                 ? 'bg-sky-600 text-white shadow-2xs'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            Bulan Ini
+            Bulan Ini (26–25)
           </button>
 
           <button

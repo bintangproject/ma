@@ -12,7 +12,8 @@ import {
   CloudCheck,
   CheckCircle,
   AlertTriangle,
-  GitBranch
+  GitBranch,
+  Menu
 } from 'lucide-react';
 import { InstitutionConfig } from '../../types/attendance';
 
@@ -29,6 +30,7 @@ interface HeaderProps {
   onOpenGuide: () => void;
   onOpenGitSync: () => void;
   isLiveConnected: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -44,24 +46,36 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenGuide,
   onOpenGitSync,
   isLiveConnected,
+  onToggleSidebar,
 }) => {
   return (
     <header className="bg-white border-b border-sky-100 shadow-xs sticky top-0 z-30 no-print">
       {/* Top institution accent ribbon */}
       <div className="h-1.5 w-full bg-gradient-to-r from-sky-400 via-sky-600 to-yellow-400" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           
           {/* Logo & Identity */}
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-3">
+            {onToggleSidebar && (
+              <button
+                type="button"
+                onClick={onToggleSidebar}
+                className="p-2 text-slate-600 hover:text-sky-700 hover:bg-sky-50 rounded-xl border border-slate-200 transition-colors"
+                title="Buka Menu Sidebar"
+              >
+                <Menu size={20} />
+              </button>
+            )}
+
             <MadarLogo size="md" logoUrl={config.LOGO_URL} />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
-                  <span className="text-sky-700">{config.NAMA_APLIKASI || 'SIMPRES'}</span>
+                  <span className="text-sky-700">{config.NAMA_APLIKASI || 'SIRAMA'}</span>
                   <span className="text-slate-400 font-normal">|</span>
-                  <span>Presensi Pengajar</span>
+                  <span className="hidden sm:inline">Presensi Pengajar</span>
                 </h1>
                 <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-100 text-sky-800 border border-sky-200">
                   {config.JABATAN_STAFF || 'Kurikulum'}

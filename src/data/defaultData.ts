@@ -8,16 +8,28 @@ export const DEFAULT_INSTITUTION_CONFIG: InstitutionConfig = {
   TIMEZONE: 'Asia/Jakarta',
   LOGO_URL: APP_CONFIG.DEFAULT_LOGO_URL,
   FAVICON_URL: APP_CONFIG.DEFAULT_FAVICON_URL,
-  NAMA_APLIKASI: 'SIMPRES KURIKULUM',
+  NAMA_APLIKASI: 'SIRAMA',
   NAMA_KEPALA: 'Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd.',
-  NAMA_STAFF: 'Ust. M. Fathur Rozak, S.Pd.',
+  NAMA_STAFF: 'Ust. Edi Amin, M.Hum.',
   JABATAN_STAFF: 'Waka Kurikulum',
   WARNA_UTAMA: '#0284c7',
   WARNA_SEKUNDER: '#0369a1',
   API_KEY: '',
   gasUrl: APP_CONFIG.SPREADSHEET_GAS_URL,
   autoSyncIntervalMinutes: 2,
+  PERSEN_SANGAT_BAIK: 90,
+  PERSEN_BAIK: 75,
+  PERSEN_CUKUP: 60,
 };
+
+export const DEFAULT_STRUKTURAL_MADAR = [
+  { nama: 'Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd.', jabatan: 'Kepala Madrasah' },
+  { nama: 'Ust. Edi Amin, M.Hum.', jabatan: 'Waka Kurikulum' },
+  { nama: 'Ust. Muh. Fathan Zamani, M.A.', jabatan: 'Waka Kesiswaan' },
+  { nama: 'Ust. H. Djamauddin, M.Pd.I.', jabatan: 'Waka Sarpras & Humas' },
+  { nama: 'Ust. M. Fathur Rozak, S.Pd.', jabatan: 'Staff Kurikulum' },
+  { nama: 'Nurrahman, S.Kom.', jabatan: 'Staff Tata Usaha / IT' },
+];
 
 export const DEFAULT_MASTER_GURU: MasterGuru[] = [
   { kode: 'RQ', nama: 'Gus. Ahmad Syauqi RN, M.Pd.' },

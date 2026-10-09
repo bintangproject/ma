@@ -43,8 +43,8 @@ export const GasGuideModal: React.FC<GasGuideModalProps> = ({ isOpen, onClose })
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Panduan Lengkap SIMPRES Kurikulum"
-      subtitle="Panduan penggunaan harian, koneksi Google Sheets, dan deployment Vercel"
+      title="Panduan Lengkap SIRAMA"
+      subtitle="Panduan presensi KBM, Guru Piket, Wajib Apel, koneksi Google Sheets, dan deployment"
       icon={<HelpCircle size={20} />}
       maxWidth="3xl"
     >

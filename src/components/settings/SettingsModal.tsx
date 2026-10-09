@@ -395,6 +395,53 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
             </div>
 
+            {/* AMBANG BATAS PERSENTASE PREDIKAT GURU */}
+            <div className="sm:col-span-2 pt-2 border-t border-slate-200">
+              <label className="block text-xs font-bold text-sky-900 mb-2">
+                Ambang Batas Persentase & Predikat Kehadiran Guru:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-200">
+                  <span className="text-[11px] font-bold text-emerald-800 block mb-1">⭐ Sangat Baik (≥ %)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={formData.PERSEN_SANGAT_BAIK ?? 90}
+                    onChange={(e) => setFormData({ ...formData, PERSEN_SANGAT_BAIK: Number(e.target.value) })}
+                    className="w-full text-xs px-2 py-1 bg-white border border-emerald-300 rounded font-bold text-emerald-900"
+                  />
+                  <span className="text-[10px] text-emerald-700 mt-1 block">Default: 90% (Teladan)</span>
+                </div>
+
+                <div className="bg-sky-50/70 p-2.5 rounded-lg border border-sky-200">
+                  <span className="text-[11px] font-bold text-sky-800 block mb-1">👍 Baik / Disiplin (≥ %)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={formData.PERSEN_BAIK ?? 75}
+                    onChange={(e) => setFormData({ ...formData, PERSEN_BAIK: Number(e.target.value) })}
+                    className="w-full text-xs px-2 py-1 bg-white border border-sky-300 rounded font-bold text-sky-900"
+                  />
+                  <span className="text-[10px] text-sky-700 mt-1 block">Default: 75% (Disiplin)</span>
+                </div>
+
+                <div className="bg-amber-50/70 p-2.5 rounded-lg border border-amber-200">
+                  <span className="text-[11px] font-bold text-amber-800 block mb-1">⚠️ Cukup (≥ %)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={formData.PERSEN_CUKUP ?? 60}
+                    onChange={(e) => setFormData({ ...formData, PERSEN_CUKUP: Number(e.target.value) })}
+                    className="w-full text-xs px-2 py-1 bg-white border border-amber-300 rounded font-bold text-amber-900"
+                  />
+                  <span className="text-[10px] text-amber-700 mt-1 block">&lt; batas ini: Perlu Perhatian</span>
+                </div>
+              </div>
+            </div>
+
           </div>
 
           {/* PRATINJAU LOGO & FAVICON */}

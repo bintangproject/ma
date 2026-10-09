@@ -1,5 +1,5 @@
-import { AttendanceRecord, InstitutionConfig, FilterState } from '../types/attendance';
-import { formatIndonesianDate, calculateSummary, STATUS_CONFIG } from './formatters';
+import { AttendanceRecord, InstitutionConfig, FilterState, GuruPiketRecord, ApelAttendanceRecord, DayScheduleMap } from '../types/attendance';
+import { formatIndonesianDate, calculateSummary, STATUS_CONFIG, getPerformanceCategory } from './formatters';
 
 export function exportToCsv(records: AttendanceRecord[], config: InstitutionConfig, filename = 'rekap_kehadiran_guru.csv') {
   const headers = [
@@ -48,10 +48,14 @@ export function exportToCsv(records: AttendanceRecord[], config: InstitutionConf
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Format Pesan WhatsApp Rekapitulasi Presensi KBM Guru (Eye-Catching & Rapi)
+ */
 export function generateWhatsAppMessage(
   records: AttendanceRecord[],
   config: InstitutionConfig,
-  filterState: FilterState
+  filterState: FilterState,
+  piketToday?: GuruPiketRecord | null
 ): string {
   const stats = calculateSummary(records);
   let periodeText = '';
@@ -62,42 +66,164 @@ export function generateWhatsAppMessage(
     periodeText = `${formatIndonesianDate(filterState.startDate, false)} s.d. ${formatIndonesianDate(filterState.endDate)}`;
   }
 
+  const category = getPerformanceCategory(stats.persentase, {
+    sangatBaik: config.PERSEN_SANGAT_BAIK,
+    baik: config.PERSEN_BAIK,
+    cukup: config.PERSEN_CUKUP,
+  });
+
   const nonHadir = records.filter(r => r.status !== 'HADIR');
   const institutionName = (config.SINGKATAN || config.NAMA_LEMBAGA || 'MA DARUL LUGHAH WAL KAROMAH').toUpperCase();
   const city = (config.KOTA || 'KRAKSAAN').toUpperCase();
 
-  let text = `*LAPORAN REKAP KEHADIRAN PENGAJAR*\n`;
-  text += `*${institutionName}*\n`;
-  text += `*${city}*\n`;
-  text += `━━━━━━━━━━━━━━━━━━━━━\n`;
+  let text = `🏛️ *LAPORAN REKAPITULASI PRESENSI PENGAJAR*\n`;
+  text += `🏫 *${institutionName} - ${city}*\n`;
+  text += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
   text += `📅 *Periode:* ${periodeText}\n`;
-  text += `👥 *Total Sesi KBM:* ${stats.total} sesi\n`;
-  text += `📈 *Tingkat Kehadiran:* ${stats.persentase}%\n\n`;
+  text += `⏰ *Waktu Rilis:* ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB\n\n`;
 
-  text += `📊 *Ringkasan Status:*\n`;
-  text += `• Hadir: ${stats.hadir} sesi\n`;
-  if (stats.tugasDinas > 0) text += `• Tugas Dinas: ${stats.tugasDinas} sesi\n`;
-  if (stats.izin > 0) text += `• Izin: ${stats.izin} sesi\n`;
-  if (stats.sakit > 0) text += `• Sakit: ${stats.sakit} sesi\n`;
-  if (stats.alpa > 0) text += `• Alpa / Tanpa Ket: ${stats.alpa} sesi\n`;
+  text += `📊 *STATISTIK RINGKAS KBM:*\n`;
+  text += `• Total Sesi KBM     : *${stats.total} sesi*\n`;
+  text += `• Tingkat Kehadiran  : *${stats.persentase}%* [${category.label}]\n`;
+  text += `• Hadir di Kelas     : ${stats.hadir} sesi\n`;
+  if (stats.tugasDinas > 0) text += `• Tugas Dinas        : ${stats.tugasDinas} sesi\n`;
+  if (stats.izin > 0) text += `• Izin Resmi         : ${stats.izin} sesi\n`;
+  if (stats.sakit > 0) text += `• Sakit              : ${stats.sakit} sesi\n`;
+  if (stats.alpa > 0) text += `• Alpa / Tanpa Ket   : ${stats.alpa} sesi\n`;
 
-  if (nonHadir.length > 0) {
-    text += `\n⚠️ *Daftar Guru Berhalangan / Khusus (${nonHadir.length} sesi):*\n`;
-    nonHadir.slice(0, 20).forEach((item, idx) => {
-      const statusLabel = STATUS_CONFIG[item.status]?.label || item.status;
-      text += `${idx + 1}. *${item.namaGuru}* [${statusLabel}]\n`;
-      text += `   ↳ Kelas ${item.kelas} (Jam ${item.jam}) - ${item.mataPelajaran} ${item.keterangan ? `(${item.keterangan})` : ''}\n`;
+  // Sisipkan Guru Piket jika ada
+  if (piketToday && (piketToday.piket1 || piketToday.piket2 || piketToday.piket3 || piketToday.piket4)) {
+    text += `\n🛡️ *GURU PIKET HARI INI:*\n`;
+    const piketItems = [piketToday.piket1, piketToday.piket2, piketToday.piket3, piketToday.piket4].filter(Boolean);
+    piketItems.forEach((p, idx) => {
+      text += `${idx + 1}. ${p}\n`;
     });
-    if (nonHadir.length > 20) {
-      text += `   ...dan ${nonHadir.length - 20} sesi lainnya.\n`;
+    if (piketToday.keterangan) {
+      text += `   _(Catatan: ${piketToday.keterangan})_\n`;
     }
-  } else {
-    text += `\n✅ *Alhamdulillah, seluruh pengajar hadir 100%! Jazakumullah khair atas kedisiplinan dan dedikasinya.*\n`;
   }
 
-  text += `\n━━━━━━━━━━━━━━━━━━━━━\n`;
-  text += `_Disampaikan oleh Staff Kurikulum ${config.SINGKATAN || 'MA Darul Lughah Wal Karomah'}._\n`;
-  text += `_${config.NAMA_APLIKASI || 'SIMPRES KURIKULUM'} - Sistem Informasi Presensi Pengajar_`;
+  // Rincian Guru Berhalangan
+  if (nonHadir.length > 0) {
+    text += `\n⚠️ *RINCIAN GURU BERHALANGAN / PENUGASAN (${nonHadir.length} sesi):*\n`;
+    nonHadir.slice(0, 25).forEach((item, idx) => {
+      const statusLabel = STATUS_CONFIG[item.status]?.label || item.status;
+      const statusEmoji = item.status === 'SAKIT' ? '🏥' : item.status === 'IZIN' ? '✉️' : item.status === 'TUGAS_DINAS' ? '💼' : '❌';
+      text += `${idx + 1}. ${statusEmoji} *${item.namaGuru}* [${statusLabel}]\n`;
+      text += `   ↳ Kelas: ${item.kelas} | Jam ke-${item.jam} | ${item.mataPelajaran}\n`;
+      if (item.keterangan) {
+        text += `   ↳ Keterangan: _${item.keterangan}_\n`;
+      }
+    });
+    if (nonHadir.length > 25) {
+      text += `   _...dan ${nonHadir.length - 25} sesi berhalangan lainnya._\n`;
+    }
+  } else {
+    text += `\n✨ *Alhamdulillah, seluruh pengajar hadir 100% tepat waktu.* Jazakumullah khairan katsiran atas kedisiplinan dan dedikasi segenap dewan guru.\n`;
+  }
+
+  text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  text += `✍️ *Tertanda:*\n`;
+  text += `Waka Kurikulum : *${config.NAMA_STAFF || 'Ust. Edi Amin, M.Hum.'}*\n`;
+  text += `Kepala Madrasah: *${config.NAMA_KEPALA || 'Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd.'}*\n\n`;
+  text += `_Dikelola melalui SIRAMA (Sistem Informasi Rekap & Absensi Pengajar)_`;
+
+  return text;
+}
+
+/**
+ * Format Pesan WhatsApp Jadwal Harian KBM (Item 9)
+ */
+export function generateWhatsAppDailyScheduleMessage(
+  hari: string,
+  tanggalStr: string,
+  schedules: DayScheduleMap,
+  config: InstitutionConfig
+): string {
+  const daySchedule = schedules[hari] || [];
+  const institutionName = (config.SINGKATAN || config.NAMA_LEMBAGA || 'MA DARUL LUGHAH WAL KAROMAH').toUpperCase();
+
+  let text = `📚 *JADWAL KBM PENGAJAR ${institutionName}*\n`;
+  text += `🗓️ *Hari ${hari}, ${formatIndonesianDate(tanggalStr)}*\n`;
+  text += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+  if (daySchedule.length === 0) {
+    text += `_Tidak ada jadwal KBM yang terdaftar untuk hari ${hari}._\n`;
+  } else {
+    // Group by Kelas
+    const byClass: Record<string, typeof daySchedule> = {};
+    daySchedule.forEach(item => {
+      const cls = item.kelas || 'Umum';
+      if (!byClass[cls]) byClass[cls] = [];
+      byClass[cls].push(item);
+    });
+
+    // Sort items by Jam inside each class
+    Object.keys(byClass).forEach(cls => {
+      byClass[cls].sort((a, b) => Number(a.jam) - Number(b.jam));
+      text += `🏫 *KELAS ${cls}*\n`;
+      byClass[cls].forEach(s => {
+        text += `${s.jam}. ${s.guruPengampu} — _${s.mataPelajaran}_\n`;
+      });
+      text += `\n`;
+    });
+  }
+
+  text += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  text += `_Mohon bapak/ibu pengajar rawuh tepat waktu. Semoga KBM hari ini lancar dan berkah. Aamiin._\n`;
+  text += `_Waka Kurikulum: ${config.NAMA_STAFF || 'Ust. Edi Amin, M.Hum.'}_`;
+
+  return text;
+}
+
+/**
+ * Format Pesan WhatsApp Rekapitulasi Apel Pagi (Item 10)
+ */
+export function generateWhatsAppApelMessage(
+  tanggalStr: string,
+  hariStr: string,
+  records: ApelAttendanceRecord[],
+  config: InstitutionConfig
+): string {
+  const total = records.length;
+  const hadir = records.filter(r => r.status === 'HADIR').length;
+  const terlambat = records.filter(r => r.status === 'TERLAMBAT').length;
+  const izin = records.filter(r => r.status === 'IZIN').length;
+  const sakit = records.filter(r => r.status === 'SAKIT').length;
+  const alpa = records.filter(r => r.status === 'ALPA').length;
+
+  const institutionName = (config.SINGKATAN || config.NAMA_LEMBAGA || 'MA DARUL LUGHAH WAL KAROMAH').toUpperCase();
+
+  let text = `🎖️ *LAPORAN PRESENSI APEL PAGI PENGAJAR*\n`;
+  text += `🏫 *${institutionName}*\n`;
+  text += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  text += `📅 *Hari/Tanggal:* ${hariStr}, ${formatIndonesianDate(tanggalStr)}\n`;
+  text += `⏰ *Pelaksanaan:* Pukul 06.45 - 07.15 WIB\n\n`;
+
+  text += `📊 *RINGKASAN KEHADIRAN APEL:*\n`;
+  text += `• Total Wajib Apel : *${total} orang*\n`;
+  text += `• Hadir Tepat Waktu: *${hadir} orang*\n`;
+  if (terlambat > 0) text += `• Terlambat        : *${terlambat} orang*\n`;
+  if (izin > 0) text += `• Izin             : *${izin} orang*\n`;
+  if (sakit > 0) text += `• Sakit            : *${sakit} orang*\n`;
+  if (alpa > 0) text += `• Alpa / Tanpa Ket : *${alpa} orang*\n`;
+
+  // Rincian Ketidakhadiran
+  const nonHadir = records.filter(r => r.status !== 'HADIR');
+  if (nonHadir.length > 0) {
+    text += `\n⚠️ *DAFTAR CATATAN / BERHALANGAN:*\n`;
+    nonHadir.forEach((r, i) => {
+      const statusIcon = r.status === 'TERLAMBAT' ? '⏳' : r.status === 'SAKIT' ? '🏥' : r.status === 'IZIN' ? '✉️' : '❌';
+      text += `${i + 1}. ${statusIcon} *${r.nama}* [${r.status}]\n`;
+      text += `   ↳ ${r.jabatanAtauJadwal} ${r.keterangan ? `(${r.keterangan})` : ''}\n`;
+    });
+  } else {
+    text += `\n✨ *Alhamdulillah, seluruh pengajar wajib apel hadir lengkap 100%.*\n`;
+  }
+
+  text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  text += `_Disampaikan oleh Staff Kurikulum & Kedisiplinan Madrasah._\n`;
+  text += `_SIRAMA (Sistem Informasi Rekap dan Absensi Pengajar)_`;
 
   return text;
 }

@@ -171,3 +171,115 @@ export function calculateTeacherSummaries(records: AttendanceRecord[]): TeacherS
 
   return list;
 }
+
+/**
+ * Rentang mingguan madrasah (Sabtu s.d. Kamis)
+ */
+export function getMadarWeeklyRange(referenceDate: Date = new Date()): { startDate: string; endDate: string } {
+  const d = referenceDate.getDay(); // 0: Ahad, 1: Senin, ..., 5: Jumat, 6: Sabtu
+  const offsetToSabtu = (d === 6) ? 0 : -(d + 1);
+
+  const sabtu = new Date(referenceDate);
+  sabtu.setDate(referenceDate.getDate() + offsetToSabtu);
+
+  const kamis = new Date(sabtu);
+  kamis.setDate(sabtu.getDate() + 5);
+
+  const formatISO = (dt: Date) => {
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const day = String(dt.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  return {
+    startDate: formatISO(sabtu),
+    endDate: formatISO(kamis),
+  };
+}
+
+/**
+ * Rentang bulanan madrasah: tgl 26 bulan sebelumnya s.d. 25 bulan ini
+ * (atau 26 bulan ini s.d. 25 bulan depan jika hari ini lewat tanggal 25)
+ */
+export function getMadarMonthlyRange(referenceDate: Date = new Date()): { startDate: string; endDate: string } {
+  const year = referenceDate.getFullYear();
+  const month = referenceDate.getMonth(); // 0-indexed
+  const date = referenceDate.getDate();
+
+  let startYear = year;
+  let startMonth = month - 1;
+  let endYear = year;
+  let endMonth = month;
+
+  if (date > 25) {
+    startYear = year;
+    startMonth = month;
+    endMonth = month + 1;
+    if (endMonth > 11) {
+      endYear = year + 1;
+      endMonth = 0;
+    }
+  } else if (startMonth < 0) {
+    startYear = year - 1;
+    startMonth = 11;
+  }
+
+  const startDate = new Date(startYear, startMonth, 26);
+  const endDate = new Date(endYear, endMonth, 25);
+
+  const formatISO = (dt: Date) => {
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const day = String(dt.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  return {
+    startDate: formatISO(startDate),
+    endDate: formatISO(endDate),
+  };
+}
+
+/**
+ * Menentukan predikat performa berdasarkan persentase kehadiran dan ambang batas konfigurasi
+ */
+export function getPerformanceCategory(
+  persentase: number,
+  thresholds?: { sangatBaik?: number; baik?: number; cukup?: number }
+): {
+  label: string;
+  badgeClass: string;
+  dotColor: string;
+} {
+  const tSangatBaik = thresholds?.sangatBaik ?? 90;
+  const tBaik = thresholds?.baik ?? 75;
+  const tCukup = thresholds?.cukup ?? 60;
+
+  if (persentase >= tSangatBaik) {
+    return {
+      label: 'Sangat Baik / Teladan',
+      badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+      dotColor: 'bg-emerald-500',
+    };
+  }
+  if (persentase >= tBaik) {
+    return {
+      label: 'Baik / Disiplin',
+      badgeClass: 'bg-sky-100 text-sky-800 border-sky-300',
+      dotColor: 'bg-sky-500',
+    };
+  }
+  if (persentase >= tCukup) {
+    return {
+      label: 'Cukup',
+      badgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+      dotColor: 'bg-amber-500',
+    };
+  }
+  return {
+    label: 'Perlu Perhatian',
+    badgeClass: 'bg-rose-100 text-rose-800 border-rose-300',
+    dotColor: 'bg-rose-500',
+  };
+}

@@ -1,4 +1,4 @@
-import { AttendanceRecord, MasterGuru, MasterMapel, DayScheduleMap, InstitutionConfig } from '../types/attendance';
+import { AttendanceRecord, MasterGuru, MasterMapel, DayScheduleMap, InstitutionConfig, GuruPiketRecord, ApelAttendanceRecord } from '../types/attendance';
 
 export interface GasSyncResponse {
   success: boolean;
@@ -9,6 +9,8 @@ export interface GasSyncResponse {
     subjects?: MasterMapel[];
     schedules?: DayScheduleMap;
     config?: Partial<InstitutionConfig>;
+    guruPiket?: GuruPiketRecord[];
+    rekapApel?: ApelAttendanceRecord[];
   };
 }
 
@@ -48,13 +50,22 @@ export async function fetchFromGoogleSheets(gasUrl: string): Promise<GasSyncResp
         if (v !== undefined && v !== null && String(v).trim() !== '') {
           const valStr = String(v).trim();
           const cleanKey = k.trim().toUpperCase().replace(/[\s-]+/g, '_');
-          normalizedConfig[cleanKey as keyof InstitutionConfig] = valStr;
+          (normalizedConfig as any)[cleanKey] = valStr;
           
           if (cleanKey === 'LOGO' || cleanKey === 'LINK_LOGO' || cleanKey === 'LOGO_LINK') {
             normalizedConfig.LOGO_URL = valStr;
           }
           if (cleanKey === 'FAVICON' || cleanKey === 'LINK_FAVICON' || cleanKey === 'ICON') {
             normalizedConfig.FAVICON_URL = valStr;
+          }
+          if (cleanKey === 'PERSEN_SANGAT_BAIK') {
+            normalizedConfig.PERSEN_SANGAT_BAIK = Number(valStr) || 90;
+          }
+          if (cleanKey === 'PERSEN_BAIK') {
+            normalizedConfig.PERSEN_BAIK = Number(valStr) || 75;
+          }
+          if (cleanKey === 'PERSEN_CUKUP') {
+            normalizedConfig.PERSEN_CUKUP = Number(valStr) || 60;
           }
         }
       }
@@ -73,6 +84,8 @@ export async function fetchFromGoogleSheets(gasUrl: string): Promise<GasSyncResp
           subjects: json.subjects || [],
           schedules: json.schedules || {},
           config: normalizedConfig,
+          guruPiket: json.guruPiket || [],
+          rekapApel: json.rekapApel || [],
         },
       };
     } else {
@@ -135,33 +148,123 @@ export async function postBulkDayAttendance(
 }
 
 /**
+ * Save Guru Piket for a day to Google Sheets
+ */
+export async function postBulkGuruPiket(
+  gasUrl: string,
+  piketRecord: GuruPiketRecord
+): Promise<GasSyncResponse> {
+  if (!gasUrl || !gasUrl.trim().startsWith('http')) {
+    return {
+      success: false,
+      message: 'URL Google Apps Script belum dikonfigurasi.',
+    };
+  }
+
+  try {
+    const payload = {
+      action: 'saveGuruPiket',
+      piket: piketRecord,
+    };
+
+    const response = await fetch(gasUrl.trim(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const json = await response.json().catch(() => ({ status: 'success' }));
+    return {
+      success: true,
+      message: json.message || 'Data Guru Piket berhasil diarsipkan ke Google Sheets!',
+    };
+  } catch (error: any) {
+    console.error('GAS Post Guru Piket Error:', error);
+    return {
+      success: false,
+      message: `Gagal mengirim data Guru Piket ke Google Sheets: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Save Rekap Apel Pagi to Google Sheets
+ */
+export async function postBulkRekapApel(
+  gasUrl: string,
+  tanggal: string,
+  records: ApelAttendanceRecord[]
+): Promise<GasSyncResponse> {
+  if (!gasUrl || !gasUrl.trim().startsWith('http')) {
+    return {
+      success: false,
+      message: 'URL Google Apps Script belum dikonfigurasi.',
+    };
+  }
+
+  try {
+    const payload = {
+      action: 'saveRekapApel',
+      tanggal,
+      records,
+    };
+
+    const response = await fetch(gasUrl.trim(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const json = await response.json().catch(() => ({ status: 'success' }));
+    return {
+      success: true,
+      message: json.message || 'Data Presensi Apel berhasil disimpan ke Google Sheets!',
+    };
+  } catch (error: any) {
+    console.error('GAS Post Rekap Apel Error:', error);
+    return {
+      success: false,
+      message: `Gagal mengirim data Apel ke Google Sheets: ${error.message}`,
+    };
+  }
+}
+
+/**
  * Generates the complete Google Apps Script code for Google Sheets
  */
 export function getGoogleAppsScriptTemplateCode(): string {
   return `/**
  * =========================================================================
- * GOOGLE APPS SCRIPT - SIMPRES KURIKULUM
+ * GOOGLE APPS SCRIPT - SIRAMA
+ * (Sistem Informasi Rekap dan Absensi Pengajar Madrasah)
  * MADRASAH ALIYAH DARUL LUGHAH WAL KAROMAH KRAKSAAN
  * =========================================================================
  * 
  * CARA PEMASANGAN DI GOOGLE SPREADSHEET:
- * 1. Buka Google Spreadsheet baru di Google Drive Anda.
+ * 1. Buka Google Spreadsheet di Google Drive Anda.
  * 2. Klik menu 'Ekstensi' (Extensions) > 'Apps Script'.
  * 3. Hapus semua kode bawaan, lalu PASTE SELURUH KODE DI BAWAH INI.
  * 4. Klik ikon Save (Simpan).
- * 5. Klik fungsi 'setupInitialDatabase' lalu klik 'Run' (Jalankan) sekali saja
- *    untuk membuat sheet: Config, Master_Guru, Master_Mapel, Jadwal (Sabtu s.d. Kamis), dan Kehadiran secara otomatis!
+ * 5. Pilih fungsi 'setupInitialDatabase' lalu klik 'Run' (Jalankan) sekali saja
+ *    untuk membuat/melengkapi sheet: Config, Master_Guru, Master_Mapel,
+ *    Jadwal (Sabtu s.d. Kamis), Kehadiran, Guru_Piket, dan Rekap_Apel secara otomatis!
  * 6. Klik tombol biru 'Terapkan' (Deploy) > 'Penerapan baru' (New deployment).
  *    - Jenis: 'Aplikasi Web' (Web App)
  *    - Jalankan sebagai: 'Saya' (Me)
  *    - Siapa yang memiliki akses: 'Siapa saja' (Anyone)  <-- PENTING!
- * 7. Salin URL Aplikasi Web (berakhiran /exec) dan tempel ke Pengaturan aplikasi ini.
+ * 7. Salin URL Aplikasi Web (berakhiran /exec) dan simpan di aplikasi SIRAMA.
  */
 
 const SHEET_CONFIG = "Config";
 const SHEET_GURU = "Master_Guru";
 const SHEET_MAPEL = "Master_Mapel";
 const SHEET_KEHADIRAN = "Kehadiran";
+const SHEET_PIKET = "Guru_Piket";
+const SHEET_APEL = "Rekap_Apel";
 const HARI_LIST = ["Sabtu", "Ahad", "Senin", "Selasa", "Rabu", "Kamis"];
 
 function doGet(e) {
@@ -169,7 +272,7 @@ function doGet(e) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     setupInitialDatabase();
     
-    // 1. Baca Config (Mendukung ada atau tidak adanya baris judul)
+    // 1. Baca Config
     const config = {};
     const cfgSheet = ss.getSheetByName(SHEET_CONFIG);
     if (cfgSheet) {
@@ -184,8 +287,7 @@ function doGet(e) {
           const v = String(cfgData[i][1] || '').trim();
           if (k) {
             config[k] = v;
-            // Normalisasi otomatis uppercase dengan garis bawah
-            const normKey = k.toUpperCase().replace(/[\s-]+/g, '_');
+            const normKey = k.toUpperCase().replace(/[\\s-]+/g, '_');
             config[normKey] = v;
           }
         }
@@ -241,7 +343,7 @@ function doGet(e) {
       }
     });
 
-    // 5. Baca Sheet Utama Kehadiran
+    // 5. Baca Sheet Utama Kehadiran (KBM)
     const attendance = [];
     const attSheet = ss.getSheetByName(SHEET_KEHADIRAN);
     if (attSheet) {
@@ -264,13 +366,59 @@ function doGet(e) {
       }
     }
 
+    // 6. Baca Sheet Guru Piket
+    const guruPiket = [];
+    const piketSheet = ss.getSheetByName(SHEET_PIKET);
+    if (piketSheet) {
+      const pData = piketSheet.getDataRange().getValues();
+      for (let i = 1; i < pData.length; i++) {
+        const row = pData[i];
+        if (!row[1]) continue;
+        guruPiket.push({
+          id: String(row[0] || ('pkt-' + i)),
+          tanggal: formatDateString(row[1]),
+          hari: String(row[2] || ''),
+          piket1: String(row[3] || ''),
+          piket2: String(row[4] || ''),
+          piket3: String(row[5] || ''),
+          piket4: String(row[6] || ''),
+          keterangan: String(row[7] || ''),
+          waktuInput: String(row[8] || '')
+        });
+      }
+    }
+
+    // 7. Baca Sheet Rekap Apel Pagi
+    const rekapApel = [];
+    const apelSheet = ss.getSheetByName(SHEET_APEL);
+    if (apelSheet) {
+      const aData = apelSheet.getDataRange().getValues();
+      for (let i = 1; i < aData.length; i++) {
+        const row = aData[i];
+        if (!row[1] && !row[3]) continue;
+        rekapApel.push({
+          id: String(row[0] || ('apl-' + i)),
+          tanggal: formatDateString(row[1]),
+          hari: String(row[2] || ''),
+          nama: String(row[3] || ''),
+          kategori: String(row[4] || 'STRUKTURAL'),
+          jabatanAtauJadwal: String(row[5] || ''),
+          status: String(row[6] || 'HADIR').toUpperCase(),
+          keterangan: String(row[7] || ''),
+          waktuInput: String(row[8] || '')
+        });
+      }
+    }
+
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
       config: config,
       teachers: teachers,
       subjects: subjects,
       schedules: schedules,
-      attendance: attendance
+      attendance: attendance,
+      guruPiket: guruPiket,
+      rekapApel: rekapApel
     })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
@@ -285,16 +433,16 @@ function doPost(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     setupInitialDatabase();
-    const attSheet = ss.getSheetByName(SHEET_KEHADIRAN);
-    
     const postData = JSON.parse(e.postData.contents);
-    
-    // Simpan Kehadiran Harian Sekaligus (Bulk Save)
+    const timestamp = Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
+
+    // A. Simpan Presensi KBM Harian (Bulk Save)
     if (postData.action === "saveDayAttendance" && postData.records) {
+      const attSheet = ss.getSheetByName(SHEET_KEHADIRAN);
       const targetDate = postData.tanggal;
       const records = postData.records;
-      
-      // Hapus data lama untuk tanggal yang sama (agar tidak duplikat saat edit ulang)
+
+      // Hapus data lama untuk tanggal yang sama
       const data = attSheet.getDataRange().getValues();
       for (let i = data.length - 1; i >= 1; i--) {
         const rowDate = formatDateString(data[i][1]);
@@ -302,11 +450,8 @@ function doPost(e) {
           attSheet.deleteRow(i + 1);
         }
       }
-      
-      // Tambahkan baris-baris baru
+
       const rowsToAdd = [];
-      const timestamp = Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
-      
       for (let j = 0; j < records.length; j++) {
         const r = records[j];
         rowsToAdd.push([
@@ -322,17 +467,91 @@ function doPost(e) {
           timestamp
         ]);
       }
-      
+
       if (rowsToAdd.length > 0) {
         attSheet.getRange(attSheet.getLastRow() + 1, 1, rowsToAdd.length, 10).setValues(rowsToAdd);
       }
-      
+
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
-        message: "Berhasil menyimpan " + rowsToAdd.length + " data kehadiran tanggal " + targetDate
+        message: "Berhasil menyimpan " + rowsToAdd.length + " data KBM tanggal " + targetDate
       })).setMimeType(ContentService.MimeType.JSON);
     }
-    
+
+    // B. Simpan Guru Piket Harian
+    if (postData.action === "saveGuruPiket" && postData.piket) {
+      const pSheet = ss.getSheetByName(SHEET_PIKET);
+      const pkt = postData.piket;
+      const targetDate = pkt.tanggal;
+
+      // Hapus piket tanggal yang sama
+      const data = pSheet.getDataRange().getValues();
+      for (let i = data.length - 1; i >= 1; i--) {
+        const rowDate = formatDateString(data[i][1]);
+        if (rowDate === targetDate) {
+          pSheet.deleteRow(i + 1);
+        }
+      }
+
+      pSheet.appendRow([
+        pkt.id || ('pkt-' + targetDate),
+        targetDate,
+        pkt.hari || '',
+        pkt.piket1 || '',
+        pkt.piket2 || '',
+        pkt.piket3 || '',
+        pkt.piket4 || '',
+        pkt.keterangan || '',
+        timestamp
+      ]);
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Berhasil menyimpan data Guru Piket tanggal " + targetDate
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // C. Simpan Rekap Apel Pagi
+    if (postData.action === "saveRekapApel" && postData.records) {
+      const aSheet = ss.getSheetByName(SHEET_APEL);
+      const targetDate = postData.tanggal;
+      const records = postData.records;
+
+      // Hapus rekap apel tanggal yang sama
+      const data = aSheet.getDataRange().getValues();
+      for (let i = data.length - 1; i >= 1; i--) {
+        const rowDate = formatDateString(data[i][1]);
+        if (rowDate === targetDate) {
+          aSheet.deleteRow(i + 1);
+        }
+      }
+
+      const rowsToAdd = [];
+      for (let k = 0; k < records.length; k++) {
+        const r = records[k];
+        rowsToAdd.push([
+          r.id || ('apl-' + targetDate + '-' + (k + 1)),
+          targetDate,
+          r.hari || '',
+          r.nama || '',
+          r.kategori || 'STRUKTURAL',
+          r.jabatanAtauJadwal || '',
+          r.status || 'HADIR',
+          r.keterangan || '',
+          timestamp
+        ]);
+      }
+
+      if (rowsToAdd.length > 0) {
+        aSheet.getRange(aSheet.getLastRow() + 1, 1, rowsToAdd.length, 9).setValues(rowsToAdd);
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Berhasil menyimpan " + rowsToAdd.length + " data presensi apel tanggal " + targetDate
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     return ContentService.createTextOutput(JSON.stringify({
       status: "error",
       message: "Aksi tidak dikenali."
@@ -369,14 +588,17 @@ function setupInitialDatabase() {
       ["SINGKATAN", "MA DARUL LUGHAH WAL KAROMAH"],
       ["KOTA", "Kraksaan"],
       ["TIMEZONE", "Asia/Jakarta"],
-      ["LOGO_URL", "https://cdn.jsdelivr.net/gh/contohdfi/tesfoto@main/Logo%20Madin%20Up.png"],
-      ["FAVICON_URL", "https://cdn.jsdelivr.net/gh/contohdfi/tesfoto@main/Logo%20Madin%20Up.png"],
-      ["NAMA_APLIKASI", "SIMPRES KURIKULUM"],
+      ["LOGO_URL", "https://cdn.jsdelivr.net/gh/contohdfi/tesfoto@main/logo%20madar.png"],
+      ["FAVICON_URL", "https://cdn.jsdelivr.net/gh/contohdfi/tesfoto@main/logo%20madar.png"],
+      ["NAMA_APLIKASI", "SIRAMA"],
       ["NAMA_KEPALA", "Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd."],
-      ["NAMA_STAFF", "Ust. M. Fathur Rozak, S.Pd."],
+      ["NAMA_STAFF", "Ust. Edi Amin, M.Hum."],
       ["JABATAN_STAFF", "Waka Kurikulum"],
       ["WARNA_UTAMA", "#0284c7"],
       ["WARNA_SEKUNDER", "#0369a1"],
+      ["PERSEN_SANGAT_BAIK", "90"],
+      ["PERSEN_BAIK", "75"],
+      ["PERSEN_CUKUP", "60"],
       ["API_KEY", ""]
     ];
     cfgSheet.getRange(2, 1, defaultConfigs.length, 2).setValues(defaultConfigs);
@@ -417,6 +639,26 @@ function setupInitialDatabase() {
       "Guru Pengampu", "Status", "Keterangan", "Waktu Input"
     ]);
     attSheet.getRange("A1:J1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+  }
+
+  // 6. Sheet Guru Piket
+  let piketSheet = ss.getSheetByName(SHEET_PIKET);
+  if (!piketSheet) {
+    piketSheet = ss.insertSheet(SHEET_PIKET);
+    piketSheet.appendRow([
+      "ID", "Tanggal", "Hari", "Piket 1", "Piket 2", "Piket 3", "Piket 4", "Keterangan", "Waktu Input"
+    ]);
+    piketSheet.getRange("A1:I1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+  }
+
+  // 7. Sheet Rekap Apel Pagi
+  let apelSheet = ss.getSheetByName(SHEET_APEL);
+  if (!apelSheet) {
+    apelSheet = ss.insertSheet(SHEET_APEL);
+    apelSheet.appendRow([
+      "ID", "Tanggal", "Hari", "Nama", "Kategori", "Jabatan / Jadwal", "Status", "Keterangan", "Waktu Input"
+    ]);
+    apelSheet.getRange("A1:I1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
   }
 }
 `;

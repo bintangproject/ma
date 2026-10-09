@@ -52,7 +52,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   const lembagaName = config.NAMA_LEMBAGA || 'MADRASAH ALIYAH DARUL LUGHAH WAL KAROMAH';
   const kotaName = config.KOTA || 'Kraksaan';
   const kepalaName = config.NAMA_KEPALA || 'Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd.';
-  const staffName = config.NAMA_STAFF || 'Ust. M. Fathur Rozak, S.Pd.';
+  const staffName = config.NAMA_STAFF || 'Ust. Edi Amin, M.Hum.';
   const staffJabatan = config.JABATAN_STAFF || 'Waka Kurikulum';
 
   return (
@@ -307,7 +307,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
             {/* Footer Cetak */}
             <div className="mt-6 pt-2 border-t border-slate-200 text-[9px] text-slate-400 flex justify-between items-center">
-              <span>{config.NAMA_APLIKASI || 'SIMPRES KURIKULUM'} • {lembagaName} {kotaName}</span>
+              <span>{config.NAMA_APLIKASI || 'SIRAMA'} • {lembagaName} {kotaName}</span>
               <span>Dicetak secara otomatis pada: {new Date().toLocaleString('id-ID')}</span>
             </div>
 

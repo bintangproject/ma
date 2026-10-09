@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
-import { AttendanceRecord, InstitutionConfig, FilterState } from '../../types/attendance';
+import { AttendanceRecord, InstitutionConfig, FilterState, GuruPiketRecord } from '../../types/attendance';
 import { generateWhatsAppMessage } from '../../utils/exportUtils';
-import { Share2, Copy, Check, MessageSquare } from 'lucide-react';
+import { Share2, Copy, Check, MessageSquare, Shield, CheckCircle } from 'lucide-react';
 
 interface WhatsAppShareModalProps {
   isOpen: boolean;
@@ -10,6 +10,7 @@ interface WhatsAppShareModalProps {
   records: AttendanceRecord[];
   config: InstitutionConfig;
   filterState: FilterState;
+  piketToday?: GuruPiketRecord | null;
 }
 
 export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
@@ -18,10 +19,11 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   records,
   config,
   filterState,
+  piketToday,
 }) => {
   const [copied, setCopied] = useState(false);
 
-  const messageText = generateWhatsAppMessage(records, config, filterState);
+  const messageText = generateWhatsAppMessage(records, config, filterState, piketToday);
 
   const handleCopy = async () => {
     try {

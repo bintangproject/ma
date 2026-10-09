@@ -56,7 +56,36 @@ export interface InstitutionConfig {
   API_KEY: string;
   gasUrl: string; // Google Apps Script Web App URL
   autoSyncIntervalMinutes: number;
+  PERSEN_SANGAT_BAIK?: number; // e.g. 90
+  PERSEN_BAIK?: number;        // e.g. 75
+  PERSEN_CUKUP?: number;       // e.g. 60
   [key: string]: any;
+}
+
+export interface GuruPiketRecord {
+  id: string;
+  tanggal: string; // YYYY-MM-DD
+  hari: string;
+  piket1: string;
+  piket2: string;
+  piket3: string;
+  piket4: string;
+  keterangan?: string;
+  waktuInput?: string;
+}
+
+export type ApelStatus = 'HADIR' | 'TERLAMBAT' | 'IZIN' | 'SAKIT' | 'ALPA';
+
+export interface ApelAttendanceRecord {
+  id: string;
+  tanggal: string; // YYYY-MM-DD
+  hari: string;
+  nama: string;
+  kategori: 'STRUKTURAL' | 'PENGAJAR_SESI_1_2';
+  jabatanAtauJadwal: string; // e.g. "Kepala Madrasah", "Pengajar Jam 1-2 di X-A"
+  status: ApelStatus;
+  keterangan?: string;
+  waktuInput?: string;
 }
 
 export type DateFilterPreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month' | 'custom';

@@ -1,4 +1,4 @@
-import { AttendanceRecord, InstitutionConfig, MasterGuru, MasterMapel, DayScheduleMap } from '../types/attendance';
+import { AttendanceRecord, InstitutionConfig, MasterGuru, MasterMapel, DayScheduleMap, GuruPiketRecord, ApelAttendanceRecord } from '../types/attendance';
 import { 
   DEFAULT_INSTITUTION_CONFIG, 
   DEFAULT_MASTER_GURU, 
@@ -9,6 +9,18 @@ import {
 import { APP_CONFIG } from '../config/appConfig';
 
 const STORAGE_KEYS = {
+  RECORDS: 'madar_sirama_records_v1',
+  CONFIG: 'madar_sirama_config_v1',
+  TEACHERS: 'madar_sirama_teachers_v1',
+  SUBJECTS: 'madar_sirama_subjects_v1',
+  SCHEDULES: 'madar_sirama_schedules_v1',
+  LAST_SYNC: 'madar_sirama_last_sync_v1',
+  GURU_PIKET: 'madar_sirama_guru_piket_v1',
+  REKAP_APEL: 'madar_sirama_rekap_apel_v1',
+};
+
+// Fallback legacy keys for migration
+const LEGACY_KEYS = {
   RECORDS: 'madar_simpres_records_v2',
   CONFIG: 'madar_simpres_config_v2',
   TEACHERS: 'madar_simpres_teachers_v2',
@@ -19,7 +31,7 @@ const STORAGE_KEYS = {
 
 export function loadStoredConfig(): InstitutionConfig {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.CONFIG);
+    const raw = localStorage.getItem(STORAGE_KEYS.CONFIG) || localStorage.getItem(LEGACY_KEYS.CONFIG);
     if (raw) {
       const parsed = JSON.parse(raw);
       // If code-level SPREADSHEET_GAS_URL is provided in appConfig.ts, prioritize it
@@ -36,12 +48,30 @@ export function loadStoredConfig(): InstitutionConfig {
         faviconUrl = APP_CONFIG.DEFAULT_FAVICON_URL;
       }
 
+      // Rebrand to SIRAMA
+      let namaApp = parsed.NAMA_APLIKASI;
+      if (!namaApp || namaApp.includes('SIMPRES')) {
+        namaApp = 'SIRAMA';
+      }
+
+      // Waka Kurikulum Ust. Edi Amin, M.Hum.
+      let namaStaff = parsed.NAMA_STAFF;
+      if (!namaStaff || namaStaff.includes('Fathur Rozak')) {
+        namaStaff = 'Ust. Edi Amin, M.Hum.';
+      }
+
       return { 
         ...DEFAULT_INSTITUTION_CONFIG, 
         ...parsed,
+        NAMA_APLIKASI: namaApp,
+        NAMA_STAFF: namaStaff,
+        JABATAN_STAFF: parsed.JABATAN_STAFF || 'Waka Kurikulum',
         gasUrl,
         LOGO_URL: logoUrl,
         FAVICON_URL: faviconUrl,
+        PERSEN_SANGAT_BAIK: parsed.PERSEN_SANGAT_BAIK || 90,
+        PERSEN_BAIK: parsed.PERSEN_BAIK || 75,
+        PERSEN_CUKUP: parsed.PERSEN_CUKUP || 60,
       };
     }
   } catch (e) {
@@ -139,6 +169,48 @@ export function saveStoredRecords(records: AttendanceRecord[]): void {
     localStorage.setItem(STORAGE_KEYS.RECORDS, JSON.stringify(records));
   } catch (e) {
     console.error('Failed to save records', e);
+  }
+}
+
+export function loadStoredGuruPiket(): GuruPiketRecord[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.GURU_PIKET);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.error('Failed to load guru piket', e);
+  }
+  return [];
+}
+
+export function saveStoredGuruPiket(piketList: GuruPiketRecord[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.GURU_PIKET, JSON.stringify(piketList));
+  } catch (e) {
+    console.error('Failed to save guru piket', e);
+  }
+}
+
+export function loadStoredRekapApel(): ApelAttendanceRecord[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.REKAP_APEL);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.error('Failed to load rekap apel', e);
+  }
+  return [];
+}
+
+export function saveStoredRekapApel(apelList: ApelAttendanceRecord[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.REKAP_APEL, JSON.stringify(apelList));
+  } catch (e) {
+    console.error('Failed to save rekap apel', e);
   }
 }
 

@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
-import { TeacherSummary } from '../../types/attendance';
+import { TeacherSummary, InstitutionConfig } from '../../types/attendance';
 import { UserCheck, AlertTriangle } from 'lucide-react';
+import { getPerformanceCategory } from '../../utils/formatters';
 
 interface TeacherSummaryTableProps {
   summaries: TeacherSummary[];
+  config?: InstitutionConfig;
   onSelectTeacherForFilter?: (teacherName: string) => void;
 }
 
 export const TeacherSummaryTable: React.FC<TeacherSummaryTableProps> = ({
   summaries,
+  config,
   onSelectTeacherForFilter,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,8 +46,8 @@ export const TeacherSummaryTable: React.FC<TeacherSummaryTableProps> = ({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs border-collapse">
+      <div className="overflow-x-auto touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <table className="w-full min-w-[760px] text-left text-xs border-collapse">
           <thead>
             <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-600 font-semibold uppercase tracking-wider">
               <th className="py-2.5 px-3.5 text-center w-12">No</th>
@@ -56,7 +59,7 @@ export const TeacherSummaryTable: React.FC<TeacherSummaryTableProps> = ({
               <th className="py-2.5 px-2.5 text-center text-rose-700 bg-rose-50/50">A (Alpa)</th>
               <th className="py-2.5 px-2.5 text-center text-indigo-700">TD (Dinas)</th>
               <th className="py-2.5 px-3.5 text-center font-bold">Persentase</th>
-              <th className="py-2.5 px-3.5 text-center">Status</th>
+              <th className="py-2.5 px-3.5 text-center">Predikat</th>
             </tr>
           </thead>
 
@@ -69,8 +72,11 @@ export const TeacherSummaryTable: React.FC<TeacherSummaryTableProps> = ({
               </tr>
             ) : (
               filtered.map((item, idx) => {
-                const isHigh = item.persentaseKehadiran >= 90;
-                const isMedium = item.persentaseKehadiran >= 75 && item.persentaseKehadiran < 90;
+                const perf = getPerformanceCategory(item.persentaseKehadiran, {
+                  sangatBaik: config?.PERSEN_SANGAT_BAIK,
+                  baik: config?.PERSEN_BAIK,
+                  cukup: config?.PERSEN_CUKUP,
+                });
                 
                 return (
                   <tr 
@@ -122,34 +128,26 @@ export const TeacherSummaryTable: React.FC<TeacherSummaryTableProps> = ({
 
                     <td className="py-2.5 px-3.5 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <span className={`font-black ${
-                          isHigh ? 'text-emerald-700' : isMedium ? 'text-amber-700' : 'text-rose-700'
-                        }`}>
+                        <span className="font-black text-slate-800">
                           {item.persentaseKehadiran}%
                         </span>
                         <div className="w-12 bg-slate-100 h-1.5 rounded-full overflow-hidden hidden sm:block">
                           <div 
-                            className={`h-full rounded-full ${
-                              isHigh ? 'bg-emerald-500' : isMedium ? 'bg-amber-500' : 'bg-rose-500'
-                            }`}
+                            className={`h-full rounded-full ${perf.dotColor}`}
                             style={{ width: `${item.persentaseKehadiran}%` }}
                           />
                         </div>
                       </div>
                     </td>
 
-                    <td className="py-2.5 px-3.5 text-center">
+                    <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
                       {item.alpa > 0 ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
                           <AlertTriangle size={10} /> Ada Alpa
                         </span>
-                      ) : isHigh ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          Sangat Disiplin
-                        </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                          Cukup
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${perf.badgeClass}`}>
+                          {perf.label}
                         </span>
                       )}
                     </td>
