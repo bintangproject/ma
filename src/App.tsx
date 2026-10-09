@@ -58,6 +58,7 @@ import { ApelAttendanceModal } from './components/apel/ApelAttendanceModal';
 import { DailyScheduleShareModal } from './components/schedule/DailyScheduleShareModal';
 import { MasterTeachersModal } from './components/master/MasterTeachersModal';
 import { MasterSubjectsModal } from './components/master/MasterSubjectsModal';
+import { TeachersWithoutScheduleModal } from './components/master/TeachersWithoutScheduleModal';
 import { PdfReportModal } from './components/report/PdfReportModal';
 import { WhatsAppShareModal } from './components/report/WhatsAppShareModal';
 import { SettingsModal } from './components/settings/SettingsModal';
@@ -124,6 +125,7 @@ export default function App() {
   const [isApelModalOpen, setIsApelModalOpen] = useState(false);
   const [isJadwalModalOpen, setIsJadwalModalOpen] = useState(false);
   const [isTeachersModalOpen, setIsTeachersModalOpen] = useState(false);
+  const [isTeachersWithoutScheduleModalOpen, setIsTeachersWithoutScheduleModalOpen] = useState(false);
   const [isSubjectsModalOpen, setIsSubjectsModalOpen] = useState(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [isWaModalOpen, setIsWaModalOpen] = useState(false);
@@ -496,6 +498,9 @@ export default function App() {
       case 'guru':
         setIsTeachersModalOpen(true);
         break;
+      case 'guru_tanpa_jam':
+        setIsTeachersWithoutScheduleModalOpen(true);
+        break;
       case 'mapel':
         setIsSubjectsModalOpen(true);
         break;
@@ -848,6 +853,15 @@ export default function App() {
         isOpen={isTeachersModalOpen}
         onClose={() => setIsTeachersModalOpen(false)}
         teachers={teachers}
+      />
+
+      {/* TEACHERS WITHOUT SCHEDULE MODAL */}
+      <TeachersWithoutScheduleModal
+        isOpen={isTeachersWithoutScheduleModalOpen}
+        onClose={() => setIsTeachersWithoutScheduleModalOpen(false)}
+        teachers={teachers}
+        schedules={schedules}
+        config={config}
       />
 
       {/* MASTER DATA SUBJECTS MODAL (VIEW ONLY) */}

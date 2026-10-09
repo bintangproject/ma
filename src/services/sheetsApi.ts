@@ -28,7 +28,6 @@ export async function fetchFromGoogleSheets(gasUrl: string): Promise<GasSyncResp
 
   try {
     const targetUrl = new URL(gasUrl.trim());
-    targetUrl.searchParams.set('action', 'getAllData');
     targetUrl.searchParams.set('t', Date.now().toString());
 
     const response = await fetch(targetUrl.toString(), {
@@ -461,8 +460,9 @@ function doGet(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
-    // Fallback: Jika dipanggil dengan parameter aksi
-    if (e && e.parameter && e.parameter.action) {
+    // Fallback: Jika dipanggil dengan parameter aksi penyimpanan khusus
+    const action = e && e.parameter && e.parameter.action ? String(e.parameter.action).trim() : '';
+    if (action && action !== 'getAllData' && action !== 'read' && action !== 'getData') {
       return handleAction(ss, e.parameter);
     }
 

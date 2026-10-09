@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Modal } from '../common/Modal';
 import { AttendanceRecord, InstitutionConfig, FilterState } from '../../types/attendance';
-import { MadarLogo } from '../common/MadarLogo';
+import { MadarLogo, parseDirectImageUrl } from '../common/MadarLogo';
 import { 
   formatIndonesianDate, 
   formatIndonesianShortDate, 
@@ -65,6 +65,38 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   const logoSirama = config.LOGO_SIRAMA_URL || APP_CONFIG.DEFAULT_LOGO_SIRAMA_URL;
   const logoMadrasah = config.LOGO_URL || APP_CONFIG.DEFAULT_LOGO_URL;
 
+  const [base64Madrasah, setBase64Madrasah] = useState<string>('');
+  const [base64Sirama, setBase64Sirama] = useState<string>('');
+
+  // Pre-load gambar menjadi base64 Data URL agar html2canvas tidak pernah ter-taint (keamanan browser)
+  React.useEffect(() => {
+    let isMounted = true;
+    const convertToBase64 = async (url: string) => {
+      try {
+        const direct = parseDirectImageUrl(url);
+        const res = await fetch(direct, { mode: 'cors' });
+        const blob = await res.blob();
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = () => resolve(direct);
+          reader.readAsDataURL(blob);
+        });
+      } catch {
+        return parseDirectImageUrl(url);
+      }
+    };
+
+    if (logoMadrasah) {
+      convertToBase64(logoMadrasah).then(b => { if (isMounted) setBase64Madrasah(b); });
+    }
+    if (logoSirama) {
+      convertToBase64(logoSirama).then(b => { if (isMounted) setBase64Sirama(b); });
+    }
+
+    return () => { isMounted = false; };
+  }, [logoMadrasah, logoSirama]);
+
   // Helper untuk render elemen print area ke Canvas HTML5 beresolusi tinggi tanpa terpotong scroll modal
   const renderDocumentToCanvas = async (el: HTMLElement) => {
     // Pastikan seluruh gambar selesai termuat
@@ -82,7 +114,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     return await html2canvas(el, {
       scale: 2, // 2x crisp retina resolution
       useCORS: true,
-      allowTaint: true,
+      allowTaint: false,
       logging: false,
       backgroundColor: '#ffffff',
       scrollX: 0,
@@ -98,14 +130,56 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
     try {
       const canvas = await renderDocumentToCanvas(printAreaRef.current);
-      const imgData = canvas.toDataURL('image/jpeg', 0.96);
+      
+      // Metode Blob (Paling stabil & kompatibel di semua browser)
+      if (canvas.toBlob) {
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            fallbackDataUrlDownload(canvas);
+            return;
+          }
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = `Laporan_SIRAMA_${filterState.startDate}_sd_${filterState.endDate}.jpg`;
+          link.href = blobUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 1500);
+          setIsExportingJpg(false);
+        }, 'image/jpeg', 0.95);
+      } else {
+        fallbackDataUrlDownload(canvas);
+      }
+    } catch (err) {
+      console.error('Error generating JPG:', err);
+      // Fallback
+      if (printAreaRef.current) {
+        try {
+          const fallbackCanvas = await html2canvas(printAreaRef.current, { scale: 1.5, useCORS: true });
+          fallbackDataUrlDownload(fallbackCanvas);
+        } catch {
+          alert('Gagal mengekspor gambar JPG. Anda dapat menggunakan tombol Cetak / PDF Browser.');
+          setIsExportingJpg(false);
+        }
+      } else {
+        setIsExportingJpg(false);
+      }
+    }
+  };
+
+  const fallbackDataUrlDownload = (canvas: HTMLCanvasElement) => {
+    try {
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const link = document.createElement('a');
       link.download = `Laporan_SIRAMA_${filterState.startDate}_sd_${filterState.endDate}.jpg`;
       link.href = imgData;
+      document.body.appendChild(link);
       link.click();
-    } catch (err) {
-      console.error('Error generating JPG:', err);
-      alert('Gagal mengekspor gambar JPG. Anda dapat menggunakan tombol Cetak / PDF Browser.');
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error('Fallback DataURL failed:', e);
+      alert('Gagal mengunduh gambar. Silakan gunakan tombol Cetak / PDF Browser.');
     } finally {
       setIsExportingJpg(false);
     }
@@ -391,20 +465,20 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
             ref={printAreaRef}
             className="bg-white p-6 sm:p-10 rounded-sm shadow-md mx-auto max-w-4xl text-slate-900 text-xs font-sans print:p-0 print:shadow-none print:max-w-none"
           >
-            {/* KOP SURAT RESMI MADRASAH (Logo Kiri SIRAMA, Logo Kanan Madrasah) */}
+            {/* KOP SURAT RESMI MADRASAH (Logo Kiri: Madrasah, Logo Kanan: SIRAMA Web App) */}
             <div className="border-b-[3px] border-double border-slate-900 pb-3 mb-5">
               <div className="flex items-center justify-between gap-4">
-                {/* Logo Kiri: Logo Aplikasi SIRAMA */}
+                {/* Logo Kiri: Logo Resmi Lembaga Madrasah */}
                 <div className="w-20 flex-shrink-0 flex justify-center items-center">
-                  <MadarLogo size="lg" logoUrl={logoSirama} />
+                  <MadarLogo size="lg" logoUrl={base64Madrasah || logoMadrasah} />
                 </div>
 
                 {/* Kop Teks Tengah */}
-                <div className="flex-1 text-center leading-snug px-2">
-                  <h4 className="text-xs sm:text-sm font-semibold tracking-wider text-slate-800 uppercase">
+                <div className="flex-1 text-center leading-snug px-2 overflow-hidden">
+                  <h4 className="text-[11px] sm:text-xs font-bold tracking-wider text-slate-800 uppercase whitespace-nowrap">
                     {yayasanName}
                   </h4>
-                  <h2 className="text-base sm:text-xl font-extrabold text-sky-950 tracking-tight uppercase my-0.5">
+                  <h2 className="text-xs sm:text-base md:text-lg font-extrabold text-sky-950 tracking-tight uppercase my-0.5 whitespace-nowrap">
                     {lembagaName}
                   </h2>
                   <p className="text-[11px] text-slate-700 font-medium">
@@ -415,9 +489,9 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                   </p>
                 </div>
 
-                {/* Logo Kanan: Logo Resmi Madrasah (Menggantikan Kemenag) */}
+                {/* Logo Kanan: Logo Web App SIRAMA */}
                 <div className="w-20 flex-shrink-0 flex justify-center items-center">
-                  <MadarLogo size="lg" logoUrl={logoMadrasah} />
+                  <MadarLogo size="lg" logoUrl={base64Sirama || logoSirama} />
                 </div>
               </div>
             </div>
@@ -428,7 +502,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                 {judulLaporan}
               </h3>
               <p className="text-xs font-semibold text-slate-700 mt-1">
-                PERIODE: {periodeText.toUpperCase()}
+                Periode: {periodeText}
               </p>
             </div>
 
@@ -570,12 +644,6 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                 </div>
 
               </div>
-            </div>
-
-            {/* Footer Cetak */}
-            <div className="mt-6 pt-2 border-t border-slate-200 text-[9px] text-slate-400 flex justify-between items-center">
-              <span>{config.NAMA_APLIKASI || 'SIRAMA'} • {lembagaName} {kotaName}</span>
-              <span>Dicetak secara otomatis pada: {new Date().toLocaleString('id-ID')}</span>
             </div>
 
           </div>

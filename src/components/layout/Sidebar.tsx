@@ -18,7 +18,8 @@ import {
   RefreshCw,
   X,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  UserX
 } from 'lucide-react';
 
 export type NavItem = 
@@ -30,6 +31,7 @@ export type NavItem =
   | 'apel'
   | 'jadwal'
   | 'guru'
+  | 'guru_tanpa_jam'
   | 'mapel'
   | 'share_wa'
   | 'pdf'
@@ -261,6 +263,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span>Data Dewan Guru</span>
                 </div>
                 <ChevronRight size={13} className="opacity-40" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { onNavigate('guru_tanpa_jam'); onClose(); }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  activeItem === 'guru_tanpa_jam'
+                    ? 'bg-sky-600 text-white shadow-2xs font-bold'
+                    : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <UserX size={16} className={activeItem === 'guru_tanpa_jam' ? 'text-white' : 'text-amber-600'} />
+                  <span>Guru Tanpa Jam (Libur)</span>
+                </div>
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
+                  Hari Ini
+                </span>
               </button>
 
               <button
