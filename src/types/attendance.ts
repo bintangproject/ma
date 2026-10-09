@@ -105,7 +105,7 @@ export interface ApelAttendanceRecord {
   hari: string;
   nama: string;
   kategori: 'STRUKTURAL' | 'PENGAJAR_SESI_1' | 'PENGAJAR_SESI_1_2';
-  jabatanAtauJadwal: string; // e.g. "Waka Kurikulum" atau "Pengajar Sesi 1-2"
+  jabatanAtauJadwal: string; // e.g. "Waka Kurikulum" atau "Pengajar Sesi 1"
   status: ApelStatus;
   keterangan?: string;
   waktuInput?: string;

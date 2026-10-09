@@ -8,7 +8,7 @@ import {
   MasterGuru 
 } from '../../types/attendance';
 import { DEFAULT_STRUKTURAL_MADAR, DAFTAR_HARI } from '../../data/defaultData';
-import { getIndonesianDayName, formatIndonesianDate } from '../../utils/formatters';
+import { getIndonesianDayName, formatIndonesianDate, STATUS_CONFIG } from '../../utils/formatters';
 import { generateWhatsAppApelMessage } from '../../utils/exportUtils';
 import { Award, Save, Copy, Check, Share2, Sparkles, Calendar, Clock, CheckCircle2, UserCheck, AlertCircle } from 'lucide-react';
 
@@ -37,6 +37,9 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
   const [selectedHari, setSelectedHari] = useState(DAFTAR_HARI.includes(detectedHari) ? detectedHari : 'Sabtu');
   const [records, setRecords] = useState<ApelAttendanceRecord[]>([]);
   const [copied, setCopied] = useState(false);
+  const [mobileMode, setMobileMode] = useState<'cards' | 'table'>(
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 'cards' : 'cards'
+  );
 
   // Extract Session 1 teachers for the selected day
   const session1Teachers = useMemo(() => {
@@ -170,7 +173,7 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Presensi Pengajar Wajib Apel Pagi"
-      subtitle="Presensi apel pagi untuk Struktural Madar dan Pengajar Sesi 1 hari ini"
+      subtitle="Presensi apel pagi untuk Struktural dan KBM 1 hari ini"
       icon={<Award size={20} className="text-amber-600" />}
       maxWidth="3xl"
     >
@@ -211,9 +214,9 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
           </div>
         </div>
 
-        {/* Metrics Banner */}
-        <div className="flex items-center justify-between px-2 text-xs">
-          <div className="flex items-center gap-4">
+        {/* Metrics Banner & View Mode Switcher */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1 text-xs">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="text-slate-600">
               Total Wajib Apel: <strong className="text-slate-900">{records.length} orang</strong>
             </span>
@@ -230,95 +233,197 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
               </span>
             )}
           </div>
-          <span className="text-[11px] text-slate-400 font-medium">
-            {selectedHari === 'Ahad' ? 'Pukul 08.20 - 08.30 WIB' : 'Pukul 09.20 - 09.30 WIB'}
-          </span>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-lg border border-slate-200 bg-slate-100 p-0.5 text-[11px]">
+              <button
+                type="button"
+                onClick={() => setMobileMode('cards')}
+                className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
+                  mobileMode === 'cards' ? 'bg-white text-amber-700 shadow-2xs' : 'text-slate-600'
+                }`}
+              >
+                Kartu HP
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileMode('table')}
+                className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
+                  mobileMode === 'table' ? 'bg-white text-amber-700 shadow-2xs' : 'text-slate-600'
+                }`}
+              >
+                Tabel
+              </button>
+            </div>
+            <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
+              {selectedHari === 'Ahad' ? 'Pukul 08.20 - 08.30 WIB' : 'Pukul 09.20 - 09.30 WIB'}
+            </span>
+          </div>
         </div>
 
-        {/* Scrollable List Table */}
-        <div className="border border-slate-200 rounded-xl max-h-[50vh] overflow-y-auto overflow-x-auto touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <table className="w-full min-w-[650px] text-left text-xs border-collapse">
-            <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 z-10 border-b border-slate-200">
-              <tr>
-                <th className="py-2.5 px-3 text-center w-12">No</th>
-                <th className="py-2.5 px-3">Nama & Peran / Jadwal</th>
-                <th className="py-2.5 px-3 text-center w-60">Status Kehadiran Apel</th>
-                <th className="py-2.5 px-3">Keterangan</th>
-              </tr>
-            </thead>
+        {/* View 1: Card View for Mobile Phones */}
+        {mobileMode === 'cards' ? (
+          <div className="max-h-[55vh] overflow-y-auto space-y-3 pr-1">
+            {records.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-xs">
+                Tidak ada pengajar wajib apel yang terdata.
+              </div>
+            ) : (
+              records.map((r) => {
+                const isHadir = r.status === 'HADIR';
+                return (
+                  <div
+                    key={r.id}
+                    className={`p-3 rounded-xl border transition-all ${
+                      !isHadir ? 'bg-amber-50/50 border-amber-300' : 'bg-white border-slate-200 shadow-2xs'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded font-semibold text-[10px] ${
+                          r.kategori === 'STRUKTURAL'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-sky-100 text-sky-800'
+                        }`}>
+                          {r.kategori === 'STRUKTURAL' ? 'Struktural' : 'Sesi 1'}
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          {r.jabatanAtauJadwal}
+                        </span>
+                      </div>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                        r.status === 'HADIR' ? 'bg-emerald-100 text-emerald-800' :
+                        r.status === 'IZIN' ? 'bg-blue-100 text-blue-800' :
+                        r.status === 'SAKIT' ? 'bg-indigo-100 text-indigo-800' :
+                        'bg-rose-100 text-rose-800'
+                      }`}>
+                        {STATUS_CONFIG[r.status]?.label || r.status}
+                      </span>
+                    </div>
 
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {records.length === 0 ? (
+                    <div className="mb-2.5">
+                      <div className="font-bold text-slate-900 text-sm">{r.nama}</div>
+                    </div>
+
+                    {/* Touch Buttons */}
+                    <div className="grid grid-cols-4 gap-1 mb-2">
+                      {(['HADIR', 'IZIN', 'SAKIT', 'ALPA'] as ApelStatus[]).map((st) => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => handleUpdateStatus(r.id, st)}
+                          className={`py-1.5 text-[11px] font-bold rounded-lg border transition-all text-center ${
+                            r.status === st
+                              ? st === 'HADIR' ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' :
+                                st === 'IZIN' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' :
+                                st === 'SAKIT' ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' :
+                                'bg-rose-600 text-white border-rose-600 shadow-xs'
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {st === 'HADIR' ? 'Hadir' : st === 'IZIN' ? 'Izin' : st === 'SAKIT' ? 'Sakit' : 'Alpa'}
+                        </button>
+                      ))}
+                    </div>
+
+                    <input
+                      type="text"
+                      placeholder={isHadir ? 'Catatan (opsional)...' : 'Alasan / keterangan...'}
+                      value={r.keterangan || ''}
+                      onChange={(e) => handleUpdateKeterangan(r.id, e.target.value)}
+                      className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50/70 focus:bg-white focus:border-amber-500 outline-none"
+                    />
+                  </div>
+                );
+              })
+            )}
+          </div>
+        ) : (
+          /* View 2: Horizontal Scrollable Table */
+          <div className="border border-slate-200 rounded-xl max-h-[50vh] overflow-y-auto overflow-x-auto touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full min-w-[650px] text-left text-xs border-collapse">
+              <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 z-10 border-b border-slate-200">
                 <tr>
-                  <td colSpan={4} className="py-8 text-center text-slate-400">
-                    Tidak ada pengajar wajib apel yang terdata.
-                  </td>
+                  <th className="py-2.5 px-3 text-center w-12">No</th>
+                  <th className="py-2.5 px-3">Nama & Peran / Jadwal</th>
+                  <th className="py-2.5 px-3 text-center w-60">Status Kehadiran Apel</th>
+                  <th className="py-2.5 px-3">Keterangan</th>
                 </tr>
-              ) : (
-                records.map((r, idx) => {
-                  const isHadir = r.status === 'HADIR';
-                  return (
-                    <tr 
-                      key={r.id}
-                      className={!isHadir ? 'bg-amber-50/40' : 'hover:bg-slate-50/60'}
-                    >
-                      <td className="py-2.5 px-3 text-center text-slate-400 font-medium">
-                        {idx + 1}
-                      </td>
+              </thead>
 
-                      <td className="py-2.5 px-3">
-                        <div className="font-bold text-slate-900">{r.nama}</div>
-                        <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
-                          <span className={`px-1.5 py-0.2 rounded font-semibold text-[10px] ${
-                            r.kategori === 'STRUKTURAL' 
-                              ? 'bg-purple-100 text-purple-800' 
-                              : 'bg-sky-100 text-sky-800'
-                          }`}>
-                            {r.kategori === 'STRUKTURAL' ? 'Struktural' : 'Sesi 1-2'}
-                          </span>
-                          <span className="truncate">{r.jabatanAtauJadwal}</span>
-                        </div>
-                      </td>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {records.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-slate-400">
+                      Tidak ada pengajar wajib apel yang terdata.
+                    </td>
+                  </tr>
+                ) : (
+                  records.map((r, idx) => {
+                    const isHadir = r.status === 'HADIR';
+                    return (
+                      <tr 
+                        key={r.id}
+                        className={!isHadir ? 'bg-amber-50/40' : 'hover:bg-slate-50/60'}
+                      >
+                        <td className="py-2.5 px-3 text-center text-slate-400 font-medium">
+                          {idx + 1}
+                        </td>
 
-                      {/* Status Buttons */}
-                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                        <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 gap-0.5">
-                          {(['HADIR', 'IZIN', 'SAKIT', 'ALPA'] as ApelStatus[]).map((st) => (
-                            <button
-                              key={st}
-                              type="button"
-                              onClick={() => handleUpdateStatus(r.id, st)}
-                              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
-                                r.status === st
-                                  ? st === 'HADIR' ? 'bg-emerald-600 text-white shadow-xs' :
-                                    st === 'IZIN' ? 'bg-blue-600 text-white shadow-xs' :
-                                    st === 'SAKIT' ? 'bg-indigo-600 text-white shadow-xs' :
-                                    'bg-rose-600 text-white shadow-xs'
-                                  : 'text-slate-600 hover:bg-slate-100'
-                              }`}
-                            >
-                              {st === 'HADIR' ? 'Hadir' : st === 'IZIN' ? 'Izin' : st === 'SAKIT' ? 'Sakit' : 'Alpa'}
-                            </button>
-                          ))}
-                        </div>
-                      </td>
+                        <td className="py-2.5 px-3">
+                          <div className="font-bold text-slate-900">{r.nama}</div>
+                          <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
+                            <span className={`px-1.5 py-0.2 rounded font-semibold text-[10px] ${
+                              r.kategori === 'STRUKTURAL' 
+                                ? 'bg-purple-100 text-purple-800' 
+                                : 'bg-sky-100 text-sky-800'
+                            }`}>
+                              {r.kategori === 'STRUKTURAL' ? 'Struktural' : 'Sesi 1'}
+                            </span>
+                            <span className="truncate">{r.jabatanAtauJadwal}</span>
+                          </div>
+                        </td>
 
-                      <td className="py-2.5 px-3">
-                        <input
-                          type="text"
-                          placeholder={isHadir ? 'Catatan (opsional)' : 'Alasan / surat...'}
-                          value={r.keterangan || ''}
-                          onChange={(e) => handleUpdateKeterangan(r.id, e.target.value)}
-                          className="w-full text-xs px-2.5 py-1 border border-slate-200 rounded bg-slate-50/50 focus:bg-white focus:border-amber-500 outline-none"
-                        />
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                        {/* Status Buttons */}
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 gap-0.5">
+                            {(['HADIR', 'IZIN', 'SAKIT', 'ALPA'] as ApelStatus[]).map((st) => (
+                              <button
+                                key={st}
+                                type="button"
+                                onClick={() => handleUpdateStatus(r.id, st)}
+                                className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
+                                  r.status === st
+                                    ? st === 'HADIR' ? 'bg-emerald-600 text-white shadow-xs' :
+                                      st === 'IZIN' ? 'bg-blue-600 text-white shadow-xs' :
+                                      st === 'SAKIT' ? 'bg-indigo-600 text-white shadow-xs' :
+                                      'bg-rose-600 text-white shadow-xs'
+                                    : 'text-slate-600 hover:bg-slate-100'
+                                }`}
+                              >
+                                {st === 'HADIR' ? 'Hadir' : st === 'IZIN' ? 'Izin' : st === 'SAKIT' ? 'Sakit' : 'Alpa'}
+                              </button>
+                            ))}
+                          </div>
+                        </td>
+
+                        <td className="py-2.5 px-3">
+                          <input
+                            type="text"
+                            placeholder={isHadir ? 'Catatan (opsional)' : 'Alasan / surat...'}
+                            value={r.keterangan || ''}
+                            onChange={(e) => handleUpdateKeterangan(r.id, e.target.value)}
+                            className="w-full text-xs px-2.5 py-1 border border-slate-200 rounded bg-slate-50/50 focus:bg-white focus:border-amber-500 outline-none"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* WhatsApp Preview */}
         <div>

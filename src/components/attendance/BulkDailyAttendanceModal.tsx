@@ -57,7 +57,9 @@ export const BulkDailyAttendanceModal: React.FC<BulkDailyAttendanceModalProps> =
   const [items, setItems] = useState<DayAttendanceItem[]>([]);
   const [filterKelas, setFilterKelas] = useState('');
   const [showAddCustom, setShowAddCustom] = useState(false);
-  const [mobileMode, setMobileMode] = useState<'cards' | 'table'>('table');
+  const [mobileMode, setMobileMode] = useState<'cards' | 'table'>(
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 'cards' : 'cards'
+  );
 
   // New custom session state
   const [customKelas, setCustomKelas] = useState(KELAS_OPTIONS[0]);

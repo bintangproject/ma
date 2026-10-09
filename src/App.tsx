@@ -635,7 +635,7 @@ export default function App() {
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-800 group-hover:text-amber-900 truncate">Wajib Apel Pagi</div>
-                <div className="text-[10px] text-slate-400 truncate">Sesi 1 & 2 + Struktural</div>
+                <div className="text-[10px] text-slate-400 truncate">Struktural & KBM 1</div>
               </div>
             </button>
 

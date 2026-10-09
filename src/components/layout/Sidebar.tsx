@@ -219,7 +219,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span>Presensi Wajib Apel</span>
                 </div>
                 <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
-                  Sesi 1-2
+                  Sesi 1
                 </span>
               </button>
 
