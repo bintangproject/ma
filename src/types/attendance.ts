@@ -22,6 +22,7 @@ export interface AttendanceRecord {
 export interface MasterGuru {
   kode: string;
   nama: string;
+  keterangan?: string; // Struktural atau Guru: misal "Kepala Madrasah", "Waka Kurikulum", "Waka Kesiswaan", "Waka Humas", "Staff EMIS", "Kepala TU", "Guru", dsb.
 }
 
 export interface MasterMapel {
@@ -40,41 +41,63 @@ export interface ScheduleItem {
 
 export type DayScheduleMap = Record<string, ScheduleItem[]>;
 
+// Jadwal 4 Guru Piket harian yang disetting di Spreadsheet
+export type JadwalPiketDayMap = Record<string, string[]>;
+
 export interface InstitutionConfig {
   NAMA_LEMBAGA: string;
   SINGKATAN: string;
   KOTA: string;
   TIMEZONE: string;
-  LOGO_URL: string;
+  LOGO_URL: string; // Logo Madrasah Aliyah (Kop kanan & branding)
+  LOGO_SIRAMA_URL?: string; // Logo SIRAMA (Kop kiri & webapp)
   FAVICON_URL: string;
-  NAMA_APLIKASI: string;
-  NAMA_KEPALA: string;
-  NAMA_STAFF: string;
-  JABATAN_STAFF: string;
+  NAMA_APLIKASI: string; // "SIRAMA"
+  KEPANJANGAN_APLIKASI: string; // "Sistem Informasi Rekap dan Absensi Pengajar Madrasah"
+  NAMA_YAYASAN: string; // "YAYASAN PONDOK PESANTREN DARUL LUGHAH WAL KAROMAH"
+  ALAMAT_LEMBAGA: string; // "Jl. Raya Sidopekso No. 01, Kraksaan, Probolinggo, Jawa Timur"
+  IDENTITAS_LEMBAGA: string; // "NSM: 131235130045 • NPSN: 20584412 • Terakreditasi \"A\" (Unggul)"
+  JUDUL_LAPORAN_PDF: string; // "LAPORAN REKAPITULASI KEHADIRAN PENGAJAR (KBM)"
+  SUBJUDUL_LAPORAN_PDF?: string; // "Dokumen Administrasi Rekapitulasi Presensi KBM Madrasah"
+  NAMA_KEPALA: string; // "Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd."
+  JABATAN_KEPALA?: string; // "Kepala Madrasah Aliyah"
+  NAMA_STAFF: string; // "Ust. Edi Amin, M.Hum."
+  JABATAN_STAFF: string; // "Waka Kurikulum"
   WARNA_UTAMA: string;
   WARNA_SEKUNDER: string;
   API_KEY: string;
   gasUrl: string; // Google Apps Script Web App URL
   autoSyncIntervalMinutes: number;
-  PERSEN_SANGAT_BAIK?: number; // e.g. 90
-  PERSEN_BAIK?: number;        // e.g. 75
-  PERSEN_CUKUP?: number;       // e.g. 60
+  PERSEN_SANGAT_BAIK?: number; // 90
+  PERSEN_BAIK?: number;        // 80
+  PERSEN_CUKUP?: number;       // 70
+  LABEL_SANGAT_BAIK?: string;
+  LABEL_BAIK?: string;
+  LABEL_CUKUP?: string;
+  LABEL_KURANG?: string;
   [key: string]: any;
 }
+
+export type PiketStatus = 'HADIR' | 'IZIN' | 'SAKIT' | 'ALPA';
 
 export interface GuruPiketRecord {
   id: string;
   tanggal: string; // YYYY-MM-DD
   hari: string;
   piket1: string;
+  status1?: PiketStatus;
   piket2: string;
+  status2?: PiketStatus;
   piket3: string;
+  status3?: PiketStatus;
   piket4: string;
+  status4?: PiketStatus;
   keterangan?: string;
   waktuInput?: string;
 }
 
-export type ApelStatus = 'HADIR' | 'TERLAMBAT' | 'IZIN' | 'SAKIT' | 'ALPA';
+// Opsi status apel (TERLAMBAT dihapus sesuai permintaan revisi)
+export type ApelStatus = 'HADIR' | 'IZIN' | 'SAKIT' | 'ALPA';
 
 export interface ApelAttendanceRecord {
   id: string;
@@ -82,7 +105,7 @@ export interface ApelAttendanceRecord {
   hari: string;
   nama: string;
   kategori: 'STRUKTURAL' | 'PENGAJAR_SESI_1_2';
-  jabatanAtauJadwal: string; // e.g. "Kepala Madrasah", "Pengajar Jam 1-2 di X-A"
+  jabatanAtauJadwal: string; // e.g. "Waka Kurikulum" atau "Pengajar Sesi 1-2"
   status: ApelStatus;
   keterangan?: string;
   waktuInput?: string;

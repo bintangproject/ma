@@ -259,6 +259,72 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
             </div>
 
+            {/* KEPANJANGAN_APLIKASI */}
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                KEPANJANGAN_APLIKASI
+              </label>
+              <input
+                type="text"
+                value={formData.KEPANJANGAN_APLIKASI || ''}
+                onChange={(e) => setFormData({ ...formData, KEPANJANGAN_APLIKASI: e.target.value })}
+                placeholder="Sistem Informasi Rekap dan Absensi Pengajar Madrasah"
+                className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+              />
+            </div>
+
+            {/* NAMA_YAYASAN */}
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                NAMA_YAYASAN (Kop Surat)
+              </label>
+              <input
+                type="text"
+                value={formData.NAMA_YAYASAN || ''}
+                onChange={(e) => setFormData({ ...formData, NAMA_YAYASAN: e.target.value })}
+                className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+              />
+            </div>
+
+            {/* ALAMAT_LEMBAGA */}
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                ALAMAT_LEMBAGA (Kop Surat)
+              </label>
+              <input
+                type="text"
+                value={formData.ALAMAT_LEMBAGA || ''}
+                onChange={(e) => setFormData({ ...formData, ALAMAT_LEMBAGA: e.target.value })}
+                className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+              />
+            </div>
+
+            {/* IDENTITAS_LEMBAGA */}
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                IDENTITAS_LEMBAGA (NSM/NPSN)
+              </label>
+              <input
+                type="text"
+                value={formData.IDENTITAS_LEMBAGA || ''}
+                onChange={(e) => setFormData({ ...formData, IDENTITAS_LEMBAGA: e.target.value })}
+                className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+              />
+            </div>
+
+            {/* JUDUL_LAPORAN_PDF */}
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                JUDUL_LAPORAN_PDF
+              </label>
+              <input
+                type="text"
+                value={formData.JUDUL_LAPORAN_PDF || ''}
+                onChange={(e) => setFormData({ ...formData, JUDUL_LAPORAN_PDF: e.target.value })}
+                className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+              />
+            </div>
+
             {/* TIMEZONE */}
             <div>
               <label className="block text-[11px] font-semibold text-slate-600 mb-1">
@@ -295,6 +361,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 type="text"
                 value={formData.NAMA_KEPALA || ''}
                 onChange={(e) => setFormData({ ...formData, NAMA_KEPALA: e.target.value })}
+                className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+              />
+            </div>
+
+            {/* JABATAN_KEPALA */}
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                JABATAN_KEPALA
+              </label>
+              <input
+                type="text"
+                value={formData.JABATAN_KEPALA || 'Kepala Madrasah Aliyah'}
+                onChange={(e) => setFormData({ ...formData, JABATAN_KEPALA: e.target.value })}
                 className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
               />
             </div>
@@ -367,16 +446,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
 
-            {/* LOGO_URL */}
+            {/* LOGO_URL (Madrasah) */}
             <div>
               <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                LOGO_URL
+                LOGO_URL (Logo Madrasah)
               </label>
               <input
                 type="text"
                 placeholder="https://.../logo.png"
                 value={formData.LOGO_URL || ''}
                 onChange={(e) => setFormData({ ...formData, LOGO_URL: e.target.value })}
+                className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+              />
+            </div>
+
+            {/* LOGO_SIRAMA_URL (Aplikasi SIRAMA) */}
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                LOGO_SIRAMA_URL (Logo Webapp)
+              </label>
+              <input
+                type="text"
+                placeholder="https://.../Logo SIRAMA.png"
+                value={formData.LOGO_SIRAMA_URL || ''}
+                onChange={(e) => setFormData({ ...formData, LOGO_SIRAMA_URL: e.target.value })}
                 className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
               />
             </div>

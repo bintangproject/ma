@@ -1,145 +1,77 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { MasterGuru } from '../../types/attendance';
-import { Users, Search, Plus, Trash2, Edit3, Check, X } from 'lucide-react';
+import { Users, Search, FileSpreadsheet, Shield, GraduationCap, CheckCircle } from 'lucide-react';
 
 interface MasterTeachersModalProps {
   isOpen: boolean;
   onClose: () => void;
   teachers: MasterGuru[];
-  onSaveTeachers: (teachers: MasterGuru[]) => void;
 }
 
 export const MasterTeachersModal: React.FC<MasterTeachersModalProps> = ({
   isOpen,
   onClose,
   teachers,
-  onSaveTeachers,
 }) => {
   const [search, setSearch] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
-  const [newKode, setNewKode] = useState('');
-  const [newNama, setNewNama] = useState('');
-
-  const [editingKode, setEditingKode] = useState<string | null>(null);
-  const [editNama, setEditNama] = useState('');
 
   const filtered = teachers.filter(t =>
     t.nama.toLowerCase().includes(search.toLowerCase()) ||
-    t.kode.toLowerCase().includes(search.toLowerCase())
+    t.kode.toLowerCase().includes(search.toLowerCase()) ||
+    (t.keterangan && t.keterangan.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const handleAdd = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newNama.trim()) return;
-    const kode = newKode.trim().toUpperCase() || `G${teachers.length + 1}`;
-    if (teachers.some(t => t.kode === kode)) {
-      alert(`Kode guru "${kode}" sudah digunakan.`);
-      return;
-    }
-    const updated = [...teachers, { kode, nama: newNama.trim() }];
-    onSaveTeachers(updated);
-    setNewKode('');
-    setNewNama('');
-    setIsAdding(false);
-  };
-
-  const handleStartEdit = (t: MasterGuru) => {
-    setEditingKode(t.kode);
-    setEditNama(t.nama);
-  };
-
-  const handleSaveEdit = (kode: string) => {
-    if (!editNama.trim()) return;
-    const updated = teachers.map(t => t.kode === kode ? { ...t, nama: editNama.trim() } : t);
-    onSaveTeachers(updated);
-    setEditingKode(null);
-  };
-
-  const handleDelete = (kode: string) => {
-    if (confirm(`Hapus pengajar dengan kode "${kode}"?`)) {
-      const updated = teachers.filter(t => t.kode !== kode);
-      onSaveTeachers(updated);
-    }
-  };
+  const strukturalCount = teachers.filter(t => {
+    if (!t.keterangan) return false;
+    const k = t.keterangan.trim().toLowerCase();
+    return k !== '' && k !== 'guru' && k !== 'guru pengampu' && k !== 'pengajar';
+  }).length;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Master Data Pengajar / Guru"
-      subtitle="Kelola daftar dewan guru dan kode inisial pengajar MA Darul Lughah Wal Karomah"
+      title="Data Dewan Guru & Struktural (View Only)"
+      subtitle="Data tersinkronisasi secara otomatis dari sheet Master_Guru di Google Spreadsheet"
       icon={<Users size={20} className="text-sky-600" />}
       maxWidth="3xl"
     >
       <div className="space-y-4">
         
-        {/* Top Controls */}
+        {/* Info Banner: View Only from Spreadsheet */}
+        <div className="bg-sky-50 border border-sky-200 rounded-xl p-3.5 flex items-start gap-3 text-xs text-sky-950">
+          <FileSpreadsheet size={20} className="text-sky-600 shrink-0 mt-0.5" />
+          <div className="leading-relaxed">
+            <span className="font-bold">Mode Lihat Saja (Tersentralisasi di Spreadsheet):</span>
+            <p className="text-slate-600 text-[11px] mt-0.5">
+              Daftar dewan guru, kode inisial, dan keterangan jabatan struktural disetting langsung di Google Spreadsheet pada sheet <strong>Master_Guru</strong>. Hal ini memastikan data tetap terpusat dan aman.
+            </p>
+          </div>
+        </div>
+
+        {/* Top Search & Stats */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="relative flex-1 max-w-sm">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Cari guru berdasarkan nama atau kode..."
+              placeholder="Cari nama, kode inisial, atau jabatan..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full text-xs pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+              className="w-full text-xs pl-8 pr-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
             />
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsAdding(!isAdding)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-lg shadow-2xs transition-colors self-start sm:self-auto"
-          >
-            <Plus size={14} />
-            <span>Tambah Guru Baru</span>
-          </button>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="px-2.5 py-1 bg-slate-100 text-slate-700 font-semibold rounded-lg border border-slate-200">
+              Total Guru: <strong>{teachers.length}</strong>
+            </span>
+            <span className="px-2.5 py-1 bg-purple-50 text-purple-700 font-semibold rounded-lg border border-purple-200">
+              Struktural: <strong>{strukturalCount}</strong>
+            </span>
+          </div>
         </div>
-
-        {/* Add Form */}
-        {isAdding && (
-          <form onSubmit={handleAdd} className="bg-sky-50/70 border border-sky-200 p-3.5 rounded-xl space-y-3 animate-in fade-in">
-            <h5 className="font-bold text-xs text-sky-900">Tambah Guru Baru:</h5>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <div>
-                <label className="block text-[11px] text-slate-600 font-semibold mb-1">Kode / Inisial</label>
-                <input
-                  type="text"
-                  placeholder="Contoh: EA"
-                  value={newKode}
-                  onChange={(e) => setNewKode(e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded bg-white"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-[11px] text-slate-600 font-semibold mb-1">Nama Lengkap & Gelar</label>
-                <input
-                  type="text"
-                  placeholder="Contoh: Ust. Edi Amin, M.Hum."
-                  value={newNama}
-                  onChange={(e) => setNewNama(e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded bg-white"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setIsAdding(false)}
-                className="px-3 py-1 text-xs text-slate-500 hover:bg-slate-200 rounded"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                className="px-3 py-1 text-xs bg-sky-600 text-white font-bold rounded shadow-2xs"
-              >
-                Simpan Guru
-              </button>
-            </div>
-          </form>
-        )}
 
         {/* Teachers Table */}
         <div className="border border-slate-200 rounded-xl max-h-[50vh] overflow-y-auto">
@@ -147,95 +79,68 @@ export const MasterTeachersModal: React.FC<MasterTeachersModalProps> = ({
             <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 z-10 border-b border-slate-200">
               <tr>
                 <th className="py-2.5 px-3 text-center w-12">No</th>
-                <th className="py-2.5 px-3 w-28">Kode Guru</th>
-                <th className="py-2.5 px-3">Nama Lengkap</th>
-                <th className="py-2.5 px-3 text-center w-24">Aksi</th>
+                <th className="py-2.5 px-3 text-center w-20">Kode</th>
+                <th className="py-2.5 px-3">Nama Lengkap & Gelar</th>
+                <th className="py-2.5 px-3 w-48">Keterangan / Jabatan</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="py-8 text-center text-slate-400">
-                    Tidak ada pengajar yang ditemukan.
+                    Tidak ditemukan data guru yang sesuai pencarian.
                   </td>
                 </tr>
               ) : (
-                filtered.map((t, idx) => (
-                  <tr key={t.kode} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-2 px-3 text-center text-slate-400 font-medium">
-                      {idx + 1}
-                    </td>
-                    <td className="py-2 px-3">
-                      <span className="font-mono font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-[11px]">
-                        {t.kode}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3">
-                      {editingKode === t.kode ? (
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="text"
-                            value={editNama}
-                            onChange={(e) => setEditNama(e.target.value)}
-                            className="flex-1 text-xs px-2 py-1 border border-sky-400 rounded outline-none"
-                            autoFocus
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleSaveEdit(t.kode)}
-                            className="p-1 bg-emerald-600 text-white rounded hover:bg-emerald-700"
-                            title="Simpan"
-                          >
-                            <Check size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingKode(null)}
-                            className="p-1 bg-slate-200 text-slate-700 rounded hover:bg-slate-300"
-                            title="Batal"
-                          >
-                            <X size={13} />
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="font-bold text-slate-900">{t.nama}</span>
-                      )}
-                    </td>
-                    <td className="py-2 px-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleStartEdit(t)}
-                          className="p-1 text-slate-400 hover:text-sky-700 hover:bg-sky-50 rounded"
-                          title="Edit Nama"
-                        >
-                          <Edit3 size={13} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(t.kode)}
-                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
-                          title="Hapus"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                filtered.map((t, idx) => {
+                  const isStruktural = t.keterangan && 
+                    t.keterangan.trim().toLowerCase() !== 'guru' && 
+                    t.keterangan.trim().toLowerCase() !== 'guru pengampu' && 
+                    t.keterangan.trim().toLowerCase() !== 'pengajar';
+
+                  return (
+                    <tr key={t.kode + idx} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-2 px-3 text-center text-slate-400 font-medium">
+                        {idx + 1}
+                      </td>
+                      <td className="py-2 px-3 text-center font-mono font-bold text-sky-700">
+                        <span className="bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+                          {t.kode}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 font-semibold text-slate-900">
+                        {t.nama}
+                      </td>
+                      <td className="py-2 px-3">
+                        {isStruktural ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-800 border border-purple-200">
+                            <Shield size={11} className="text-purple-600" />
+                            <span>{t.keterangan}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-slate-600 bg-slate-50 border border-slate-200">
+                            <GraduationCap size={11} className="text-slate-400" />
+                            <span>{t.keterangan || 'Guru Pengampu'}</span>
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
 
-        <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
-          <span>Total Pengajar Terdaftar: <strong>{teachers.length} orang</strong></span>
+        {/* Footer info */}
+        <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+          <span>Menampilkan {filtered.length} dari {teachers.length} guru</span>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg"
+            className="px-4 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
           >
-            Selesai
+            Tutup
           </button>
         </div>
 

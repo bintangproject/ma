@@ -144,7 +144,7 @@ export function generateWhatsAppDailyScheduleMessage(
   const institutionName = (config.SINGKATAN || config.NAMA_LEMBAGA || 'MA DARUL LUGHAH WAL KAROMAH').toUpperCase();
 
   let text = `📚 *JADWAL KBM PENGAJAR ${institutionName}*\n`;
-  text += `🗓️ *Hari ${hari}, ${formatIndonesianDate(tanggalStr)}*\n`;
+  text += `🗓️ *Hari ${hari}, ${formatIndonesianDate(tanggalStr, false)}*\n`;
   text += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
   if (daySchedule.length === 0) {
@@ -177,7 +177,8 @@ export function generateWhatsAppDailyScheduleMessage(
 }
 
 /**
- * Format Pesan WhatsApp Rekapitulasi Apel Pagi (Item 10)
+ * Format Pesan WhatsApp Rekapitulasi Apel Pagi (Item 8 & 10)
+ * Mencantumkan daftar Hadir, Izin, Sakit, dan Alpa secara lengkap tanpa opsi telat atau rincian jam kelas
  */
 export function generateWhatsAppApelMessage(
   tanggalStr: string,
@@ -186,39 +187,58 @@ export function generateWhatsAppApelMessage(
   config: InstitutionConfig
 ): string {
   const total = records.length;
-  const hadir = records.filter(r => r.status === 'HADIR').length;
-  const terlambat = records.filter(r => r.status === 'TERLAMBAT').length;
-  const izin = records.filter(r => r.status === 'IZIN').length;
-  const sakit = records.filter(r => r.status === 'SAKIT').length;
-  const alpa = records.filter(r => r.status === 'ALPA').length;
+  const hadirList = records.filter(r => r.status === 'HADIR');
+  const izinList = records.filter(r => r.status === 'IZIN');
+  const sakitList = records.filter(r => r.status === 'SAKIT');
+  const alpaList = records.filter(r => r.status === 'ALPA');
 
   const institutionName = (config.SINGKATAN || config.NAMA_LEMBAGA || 'MA DARUL LUGHAH WAL KAROMAH').toUpperCase();
 
   let text = `🎖️ *LAPORAN PRESENSI APEL PAGI PENGAJAR*\n`;
   text += `🏫 *${institutionName}*\n`;
   text += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-  text += `📅 *Hari/Tanggal:* ${hariStr}, ${formatIndonesianDate(tanggalStr)}\n`;
+  text += `📅 *Hari/Tanggal:* ${hariStr}, ${formatIndonesianDate(tanggalStr, false)}\n`;
   text += `⏰ *Pelaksanaan:* Pukul 06.45 - 07.15 WIB\n\n`;
 
   text += `📊 *RINGKASAN KEHADIRAN APEL:*\n`;
   text += `• Total Wajib Apel : *${total} orang*\n`;
-  text += `• Hadir Tepat Waktu: *${hadir} orang*\n`;
-  if (terlambat > 0) text += `• Terlambat        : *${terlambat} orang*\n`;
-  if (izin > 0) text += `• Izin             : *${izin} orang*\n`;
-  if (sakit > 0) text += `• Sakit            : *${sakit} orang*\n`;
-  if (alpa > 0) text += `• Alpa / Tanpa Ket : *${alpa} orang*\n`;
+  text += `• Hadir            : *${hadirList.length} orang*\n`;
+  if (izinList.length > 0) text += `• Izin             : *${izinList.length} orang*\n`;
+  if (sakitList.length > 0) text += `• Sakit            : *${sakitList.length} orang*\n`;
+  if (alpaList.length > 0) text += `• Alpa / Tanpa Ket : *${alpaList.length} orang*\n`;
 
-  // Rincian Ketidakhadiran
-  const nonHadir = records.filter(r => r.status !== 'HADIR');
-  if (nonHadir.length > 0) {
-    text += `\n⚠️ *DAFTAR CATATAN / BERHALANGAN:*\n`;
-    nonHadir.forEach((r, i) => {
-      const statusIcon = r.status === 'TERLAMBAT' ? '⏳' : r.status === 'SAKIT' ? '🏥' : r.status === 'IZIN' ? '✉️' : '❌';
-      text += `${i + 1}. ${statusIcon} *${r.nama}* [${r.status}]\n`;
-      text += `   ↳ ${r.jabatanAtauJadwal} ${r.keterangan ? `(${r.keterangan})` : ''}\n`;
-    });
+  // 1. DAFTAR HADIR
+  text += `\n✅ *DAFTAR HADIR APEL (${hadirList.length} Orang):*\n`;
+  if (hadirList.length === 0) {
+    text += `_Tidak ada_\n`;
   } else {
-    text += `\n✨ *Alhamdulillah, seluruh pengajar wajib apel hadir lengkap 100%.*\n`;
+    hadirList.forEach((r, i) => {
+      text += `${i + 1}. *${r.nama}* (${r.jabatanAtauJadwal})\n`;
+    });
+  }
+
+  // 2. DAFTAR IZIN
+  if (izinList.length > 0) {
+    text += `\n✉️ *DAFTAR IZIN (${izinList.length} Orang):*\n`;
+    izinList.forEach((r, i) => {
+      text += `${i + 1}. *${r.nama}* (${r.jabatanAtauJadwal})${r.keterangan ? ` — _${r.keterangan}_` : ''}\n`;
+    });
+  }
+
+  // 3. DAFTAR SAKIT
+  if (sakitList.length > 0) {
+    text += `\n🏥 *DAFTAR SAKIT (${sakitList.length} Orang):*\n`;
+    sakitList.forEach((r, i) => {
+      text += `${i + 1}. *${r.nama}* (${r.jabatanAtauJadwal})${r.keterangan ? ` — _${r.keterangan}_` : ''}\n`;
+    });
+  }
+
+  // 4. DAFTAR ALPA
+  if (alpaList.length > 0) {
+    text += `\n❌ *DAFTAR ALPA / TANPA KETERANGAN (${alpaList.length} Orang):*\n`;
+    alpaList.forEach((r, i) => {
+      text += `${i + 1}. *${r.nama}* (${r.jabatanAtauJadwal})${r.keterangan ? ` — _${r.keterangan}_` : ''}\n`;
+    });
   }
 
   text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;

@@ -41,24 +41,37 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
   // Extract Session 1 & 2 teachers for the selected day
   const session1And2Teachers = useMemo(() => {
     const daySchedule = schedules[selectedHari] || [];
-    const map = new Map<string, string[]>();
+    const set = new Set<string>();
 
     daySchedule.forEach(item => {
       const j = Number(item.jam);
       if (j === 1 || j === 2) {
         const name = (item.guruPengampu || '').trim();
         if (name) {
-          if (!map.has(name)) map.set(name, []);
-          map.get(name)!.push(`Jam ${item.jam} di ${item.kelas}`);
+          set.add(name);
         }
       }
     });
 
-    return Array.from(map.entries()).map(([nama, schedulesList]) => ({
+    return Array.from(set).map(nama => ({
       nama,
-      jadwalStr: schedulesList.join(', '),
+      jadwalStr: 'Pengajar Sesi 1 & 2',
     }));
   }, [schedules, selectedHari]);
+
+  // Extract Struktural Madar from MasterGuru (kolom keterangan di sheet Master_Guru)
+  const strukturalList = useMemo(() => {
+    const list = teachers.filter(t => {
+      if (!t.keterangan) return false;
+      const k = t.keterangan.trim().toLowerCase();
+      return k !== '' && k !== 'guru' && k !== 'guru pengampu' && k !== 'pengajar';
+    });
+
+    if (list.length > 0) {
+      return list.map(t => ({ nama: t.nama, jabatan: t.keterangan || 'Struktural' }));
+    }
+    return DEFAULT_STRUKTURAL_MADAR;
+  }, [teachers]);
 
   // Initialize or load existing records when date or day changes
   useEffect(() => {
@@ -74,7 +87,7 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
     const initialList: ApelAttendanceRecord[] = [];
 
     // 1. Struktural Madar
-    DEFAULT_STRUKTURAL_MADAR.forEach((s, idx) => {
+    strukturalList.forEach((s, idx) => {
       initialList.push({
         id: `apl-${selectedDate}-str-${idx}`,
         tanggal: selectedDate,
@@ -106,7 +119,7 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
     });
 
     setRecords(initialList);
-  }, [selectedDate, selectedHari, isOpen, existingApelRecords, session1And2Teachers]);
+  }, [selectedDate, selectedHari, isOpen, existingApelRecords, session1And2Teachers, strukturalList]);
 
   const handleUpdateStatus = (id: string, status: ApelStatus) => {
     setRecords(prev => prev.map(r => r.id === id ? { ...r, status } : r));
@@ -270,22 +283,21 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
                       {/* Status Buttons */}
                       <td className="py-2.5 px-3 text-center whitespace-nowrap">
                         <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 gap-0.5">
-                          {(['HADIR', 'TERLAMBAT', 'IZIN', 'SAKIT', 'ALPA'] as ApelStatus[]).map((st) => (
+                          {(['HADIR', 'IZIN', 'SAKIT', 'ALPA'] as ApelStatus[]).map((st) => (
                             <button
                               key={st}
                               type="button"
                               onClick={() => handleUpdateStatus(r.id, st)}
-                              className={`px-2 py-1 text-[11px] font-bold rounded-md transition-all ${
+                              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
                                 r.status === st
                                   ? st === 'HADIR' ? 'bg-emerald-600 text-white shadow-xs' :
-                                    st === 'TERLAMBAT' ? 'bg-amber-600 text-white shadow-xs' :
                                     st === 'IZIN' ? 'bg-blue-600 text-white shadow-xs' :
                                     st === 'SAKIT' ? 'bg-indigo-600 text-white shadow-xs' :
                                     'bg-rose-600 text-white shadow-xs'
                                   : 'text-slate-600 hover:bg-slate-100'
                               }`}
                             >
-                              {st === 'TERLAMBAT' ? 'Telat' : st === 'HADIR' ? 'Hadir' : st === 'IZIN' ? 'Izin' : st === 'SAKIT' ? 'Sakit' : 'Alpa'}
+                              {st === 'HADIR' ? 'Hadir' : st === 'IZIN' ? 'Izin' : st === 'SAKIT' ? 'Sakit' : 'Alpa'}
                             </button>
                           ))}
                         </div>

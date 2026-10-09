@@ -22,6 +22,8 @@ import {
   saveStoredSchedules,
   loadStoredGuruPiket,
   saveStoredGuruPiket,
+  loadStoredJadwalPiket,
+  saveStoredJadwalPiket,
   loadStoredRekapApel,
   saveStoredRekapApel,
   loadLastSyncTime,
@@ -88,6 +90,7 @@ export default function App() {
   const [subjects, setSubjects] = useState<MasterMapel[]>(loadStoredSubjects);
   const [schedules, setSchedules] = useState<DayScheduleMap>(loadStoredSchedules);
   const [guruPiketHistory, setGuruPiketHistory] = useState<GuruPiketRecord[]>(loadStoredGuruPiket);
+  const [jadwalPiket, setJadwalPiket] = useState<Record<string, string[]>>(loadStoredJadwalPiket);
   const [rekapApelHistory, setRekapApelHistory] = useState<ApelAttendanceRecord[]>(loadStoredRekapApel);
 
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(loadLastSyncTime);
@@ -234,6 +237,11 @@ export default function App() {
         if (result.data.guruPiket && result.data.guruPiket.length > 0) {
           setGuruPiketHistory(result.data.guruPiket);
           saveStoredGuruPiket(result.data.guruPiket);
+        }
+        // Jadwal Piket
+        if (result.data.jadwalPiket && Object.keys(result.data.jadwalPiket).length > 0) {
+          setJadwalPiket(result.data.jadwalPiket);
+          saveStoredJadwalPiket(result.data.jadwalPiket);
         }
         // Rekap Apel
         if (result.data.rekapApel && result.data.rekapApel.length > 0) {
@@ -781,6 +789,7 @@ export default function App() {
         isOpen={isPiketModalOpen}
         onClose={() => setIsPiketModalOpen(false)}
         teachers={teachers}
+        jadwalPiket={jadwalPiket}
         piketHistory={guruPiketHistory}
         onSavePiket={handleSaveGuruPiket}
         config={config}
@@ -805,34 +814,18 @@ export default function App() {
         config={config}
       />
 
-      {/* MASTER DATA TEACHERS MODAL */}
+      {/* MASTER DATA TEACHERS MODAL (VIEW ONLY) */}
       <MasterTeachersModal
         isOpen={isTeachersModalOpen}
         onClose={() => setIsTeachersModalOpen(false)}
         teachers={teachers}
-        onSaveTeachers={(updated) => {
-          setTeachers(updated);
-          saveStoredTeachers(updated);
-          setSyncNotice({
-            type: 'success',
-            message: 'Data dewan guru berhasil diperbarui.',
-          });
-        }}
       />
 
-      {/* MASTER DATA SUBJECTS MODAL */}
+      {/* MASTER DATA SUBJECTS MODAL (VIEW ONLY) */}
       <MasterSubjectsModal
         isOpen={isSubjectsModalOpen}
         onClose={() => setIsSubjectsModalOpen(false)}
         subjects={subjects}
-        onSaveSubjects={(updated) => {
-          setSubjects(updated);
-          saveStoredSubjects(updated);
-          setSyncNotice({
-            type: 'success',
-            message: 'Data mata pelajaran berhasil diperbarui.',
-          });
-        }}
       />
 
       {/* OFFICIAL PDF REPORT MODAL */}

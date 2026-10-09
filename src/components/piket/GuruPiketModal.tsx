@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
-import { GuruPiketRecord, MasterGuru, InstitutionConfig } from '../../types/attendance';
+import { GuruPiketRecord, MasterGuru, InstitutionConfig, PiketStatus } from '../../types/attendance';
 import { getIndonesianDayName, formatIndonesianDate } from '../../utils/formatters';
-import { Shield, Save, Copy, Check, Share2, Plus, Calendar, Clock, UserCheck } from 'lucide-react';
+import { DEFAULT_JADWAL_PIKET } from '../../data/defaultData';
+import { Shield, Save, Copy, Check, Share2, Calendar, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
 
 interface GuruPiketModalProps {
   isOpen: boolean;
   onClose: () => void;
   teachers: MasterGuru[];
+  jadwalPiket?: Record<string, string[]>;
   piketHistory: GuruPiketRecord[];
   onSavePiket: (record: GuruPiketRecord) => void;
   config: InstitutionConfig;
@@ -17,6 +19,7 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
   isOpen,
   onClose,
   teachers,
+  jadwalPiket = {},
   piketHistory,
   onSavePiket,
   config,
@@ -25,14 +28,23 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedHari, setSelectedHari] = useState(getIndonesianDayName(todayStr));
 
+  // 4 Guru Piket harian yang disetting di Spreadsheet
   const [piket1, setPiket1] = useState('');
+  const [status1, setStatus1] = useState<PiketStatus>('HADIR');
+  
   const [piket2, setPiket2] = useState('');
+  const [status2, setStatus2] = useState<PiketStatus>('HADIR');
+
   const [piket3, setPiket3] = useState('');
+  const [status3, setStatus3] = useState<PiketStatus>('HADIR');
+
   const [piket4, setPiket4] = useState('');
+  const [status4, setStatus4] = useState<PiketStatus>('HADIR');
+
   const [keterangan, setKeterangan] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // When date changes or modal opens, load existing piket record if any
+  // When date changes or modal opens, load scheduled teachers from Spreadsheet
   useEffect(() => {
     if (!isOpen) return;
     const day = getIndonesianDayName(selectedDate);
@@ -41,40 +53,48 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
     const existing = piketHistory.find(p => p.tanggal === selectedDate);
     if (existing) {
       setPiket1(existing.piket1 || '');
+      setStatus1(existing.status1 || 'HADIR');
       setPiket2(existing.piket2 || '');
+      setStatus2(existing.status2 || 'HADIR');
       setPiket3(existing.piket3 || '');
+      setStatus3(existing.status3 || 'HADIR');
       setPiket4(existing.piket4 || '');
+      setStatus4(existing.status4 || 'HADIR');
       setKeterangan(existing.keterangan || '');
     } else {
-      // Suggest default teachers if empty
-      setPiket1(teachers[0]?.nama || '');
-      setPiket2(teachers[1]?.nama || '');
-      setPiket3(teachers[2]?.nama || '');
-      setPiket4(teachers[3]?.nama || '');
-      setKeterangan('Standby bertugas mengawal KBM & ketertiban madrasah');
+      // Ambil jadwal 4 guru piket dari Sheet Jadwal_Piket
+      const scheduled = jadwalPiket[day] || DEFAULT_JADWAL_PIKET[day] || [];
+      setPiket1(scheduled[0] || teachers[0]?.nama || 'Petugas 1');
+      setStatus1('HADIR');
+      setPiket2(scheduled[1] || teachers[1]?.nama || 'Petugas 2');
+      setStatus2('HADIR');
+      setPiket3(scheduled[2] || teachers[2]?.nama || 'Petugas 3');
+      setStatus3('HADIR');
+      setPiket4(scheduled[3] || teachers[3]?.nama || 'Petugas 4');
+      setStatus4('HADIR');
+      setKeterangan('');
     }
-  }, [selectedDate, isOpen, piketHistory, teachers]);
+  }, [selectedDate, isOpen, piketHistory, jadwalPiket, teachers]);
 
   const handleSave = () => {
-    if (!piket1 && !piket2 && !piket3 && !piket4) {
-      alert('Harap isi minimal 1 nama Guru Piket.');
-      return;
-    }
-
     const record: GuruPiketRecord = {
       id: `pkt-${selectedDate}`,
       tanggal: selectedDate,
       hari: selectedHari,
-      piket1: piket1.trim(),
-      piket2: piket2.trim(),
-      piket3: piket3.trim(),
-      piket4: piket4.trim(),
+      piket1,
+      status1,
+      piket2,
+      status2,
+      piket3,
+      status3,
+      piket4,
+      status4,
       keterangan: keterangan.trim(),
       waktuInput: `${selectedDate} ${new Date().toLocaleTimeString('id-ID')}`,
     };
 
     onSavePiket(record);
-    alert(`Data Guru Piket hari ${selectedHari}, ${formatIndonesianDate(selectedDate)} berhasil disimpan dan diarsipkan!`);
+    alert(`Data Kehadiran Guru Piket hari ${selectedHari}, ${formatIndonesianDate(selectedDate, false)} berhasil disimpan!`);
   };
 
   const generatePiketWaText = () => {
@@ -82,15 +102,28 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
     let text = `🛡️ *GURU PIKET MADRASAH*\n`;
     text += `🏫 *${institutionName}*\n`;
     text += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `📅 *Hari/Tanggal:* ${selectedHari}, ${formatIndonesianDate(selectedDate)}\n\n`;
-    text += `📋 *Daftar Guru Piket (4 Petugas):*\n`;
-    if (piket1) text += `1. *${piket1}*\n`;
-    if (piket2) text += `2. *${piket2}*\n`;
-    if (piket3) text += `3. *${piket3}*\n`;
-    if (piket4) text += `4. *${piket4}*\n`;
-    if (keterangan) text += `\n📝 *Tugas/Catatan:* _${keterangan}_\n`;
+    // Gunakan includeDay=false agar nama hari tidak ganda
+    text += `📅 *Hari/Tanggal:* ${selectedHari}, ${formatIndonesianDate(selectedDate, false)}\n\n`;
+    
+    text += `📋 *Daftar Petugas Piket Hari Ini (4 Petugas):*\n`;
+    const items = [
+      { nama: piket1, status: status1 },
+      { nama: piket2, status: status2 },
+      { nama: piket3, status: status3 },
+      { nama: piket4, status: status4 },
+    ].filter(i => i.nama);
+
+    items.forEach((item, idx) => {
+      const statusIcon = item.status === 'HADIR' ? '✅' : item.status === 'IZIN' ? '✉️' : item.status === 'SAKIT' ? '🏥' : '❌';
+      text += `${idx + 1}. ${statusIcon} *${item.nama}* [${item.status}]\n`;
+    });
+
+    if (keterangan) {
+      text += `\n📝 *Catatan/Laporan Piket:* _${keterangan}_\n`;
+    }
+
     text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `_Selamat bertugas bapak/ibu guru piket. Jazakumullah khair._\n`;
+    text += `_Jadwal piket diatur melalui Spreadsheet. Dikelola via SIRAMA._\n`;
     text += `_Waka Kurikulum: ${config.NAMA_STAFF || 'Ust. Edi Amin, M.Hum.'}_`;
     return text;
   };
@@ -102,7 +135,6 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      // Fallback
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     }
@@ -113,19 +145,54 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 
+  const renderStatusSelector = (currentStatus: PiketStatus, onChange: (s: PiketStatus) => void) => {
+    return (
+      <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 gap-0.5">
+        {(['HADIR', 'IZIN', 'SAKIT', 'ALPA'] as PiketStatus[]).map((st) => (
+          <button
+            key={st}
+            type="button"
+            onClick={() => onChange(st)}
+            className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
+              currentStatus === st
+                ? st === 'HADIR' ? 'bg-emerald-600 text-white shadow-xs' :
+                  st === 'IZIN' ? 'bg-blue-600 text-white shadow-xs' :
+                  st === 'SAKIT' ? 'bg-amber-600 text-white shadow-xs' :
+                  'bg-rose-600 text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            {st === 'HADIR' ? 'Hadir' : st === 'IZIN' ? 'Izin' : st === 'SAKIT' ? 'Sakit' : 'Alpa'}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Guru Piket Harian Madrasah"
-      subtitle="Arsip 4 guru piket harian yang disertakan dalam laporan harian tanpa dihitung jam KBM"
+      title="Presensi Guru Piket Harian"
+      subtitle="Jadwal 4 guru piket harian disetting dari Spreadsheet, input kehadiran dilakukan di sini"
       icon={<Shield size={20} className="text-sky-600" />}
       maxWidth="2xl"
     >
       <div className="space-y-4">
         
+        {/* Info Banner: Jadwal dari Spreadsheet */}
+        <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-sky-900">
+          <FileSpreadsheet size={18} className="text-sky-600 shrink-0 mt-0.5" />
+          <div className="leading-relaxed">
+            <span className="font-bold">Jadwal Guru Piket Otomatis dari Spreadsheet:</span>
+            <p className="text-slate-600 text-[11px] mt-0.5">
+              Daftar nama 4 petugas piket setiap hari diambil otomatis dari sheet <strong>Jadwal_Piket</strong> di Google Spreadsheet. Di sini Anda cukup menandai kehadiran (Hadir/Izin/Sakit/Alpa).
+            </p>
+          </div>
+        </div>
+
         {/* Date Selector */}
-        <div className="bg-sky-50/60 p-3.5 rounded-xl border border-sky-100 flex flex-wrap items-center justify-between gap-3">
+        <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Calendar size={16} className="text-sky-600" />
             <span className="text-xs font-bold text-slate-700">Tanggal Piket:</span>
@@ -137,104 +204,90 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
             />
           </div>
 
-          <div className="text-xs font-semibold text-sky-800 bg-sky-100 px-3 py-1 rounded-lg">
+          <div className="text-xs font-bold text-sky-900 bg-sky-100 px-3 py-1 rounded-lg">
             Hari {selectedHari}
           </div>
         </div>
 
-        {/* 4 Piket Form Inputs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          
-          {/* Piket 1 */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-[11px] font-black">1</span>
-              <span>Guru Piket 1</span>
-            </label>
-            <input
-              list="guru-list"
-              type="text"
-              value={piket1}
-              onChange={(e) => setPiket1(e.target.value)}
-              placeholder="Pilih atau ketik nama guru..."
-              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-sky-500"
-            />
+        {/* 4 Petugas Piket Cards */}
+        <div className="space-y-2.5">
+          {/* Petugas 1 */}
+          <div className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-sky-300 transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-xs font-black">1</span>
+              <div>
+                <p className="text-xs font-bold text-slate-900">{piket1 || 'Belum diatur di Sheet Jadwal_Piket'}</p>
+                <p className="text-[10px] text-slate-400 font-medium">Petugas Piket 1 ({selectedHari})</p>
+              </div>
+            </div>
+            <div>
+              {renderStatusSelector(status1, setStatus1)}
+            </div>
           </div>
 
-          {/* Piket 2 */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-[11px] font-black">2</span>
-              <span>Guru Piket 2</span>
-            </label>
-            <input
-              list="guru-list"
-              type="text"
-              value={piket2}
-              onChange={(e) => setPiket2(e.target.value)}
-              placeholder="Pilih atau ketik nama guru..."
-              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-sky-500"
-            />
+          {/* Petugas 2 */}
+          <div className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-sky-300 transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-xs font-black">2</span>
+              <div>
+                <p className="text-xs font-bold text-slate-900">{piket2 || 'Belum diatur di Sheet Jadwal_Piket'}</p>
+                <p className="text-[10px] text-slate-400 font-medium">Petugas Piket 2 ({selectedHari})</p>
+              </div>
+            </div>
+            <div>
+              {renderStatusSelector(status2, setStatus2)}
+            </div>
           </div>
 
-          {/* Piket 3 */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-[11px] font-black">3</span>
-              <span>Guru Piket 3</span>
-            </label>
-            <input
-              list="guru-list"
-              type="text"
-              value={piket3}
-              onChange={(e) => setPiket3(e.target.value)}
-              placeholder="Pilih atau ketik nama guru..."
-              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-sky-500"
-            />
+          {/* Petugas 3 */}
+          <div className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-sky-300 transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-xs font-black">3</span>
+              <div>
+                <p className="text-xs font-bold text-slate-900">{piket3 || 'Belum diatur di Sheet Jadwal_Piket'}</p>
+                <p className="text-[10px] text-slate-400 font-medium">Petugas Piket 3 ({selectedHari})</p>
+              </div>
+            </div>
+            <div>
+              {renderStatusSelector(status3, setStatus3)}
+            </div>
           </div>
 
-          {/* Piket 4 */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-[11px] font-black">4</span>
-              <span>Guru Piket 4</span>
-            </label>
-            <input
-              list="guru-list"
-              type="text"
-              value={piket4}
-              onChange={(e) => setPiket4(e.target.value)}
-              placeholder="Pilih atau ketik nama guru..."
-              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-sky-500"
-            />
+          {/* Petugas 4 */}
+          <div className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-sky-300 transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-xs font-black">4</span>
+              <div>
+                <p className="text-xs font-bold text-slate-900">{piket4 || 'Belum diatur di Sheet Jadwal_Piket'}</p>
+                <p className="text-[10px] text-slate-400 font-medium">Petugas Piket 4 ({selectedHari})</p>
+              </div>
+            </div>
+            <div>
+              {renderStatusSelector(status4, setStatus4)}
+            </div>
           </div>
-
         </div>
-
-        {/* Datalist for autocomplete */}
-        <datalist id="guru-list">
-          {teachers.map(t => (
-            <option key={t.kode} value={t.nama} />
-          ))}
-        </datalist>
 
         {/* Keterangan Tugas */}
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-1">
-            Catatan / Instruksi Piket (Opsional):
+            Catatan / Keterangan Piket (Opsional):
           </label>
           <input
             type="text"
             value={keterangan}
             onChange={(e) => setKeterangan(e.target.value)}
-            placeholder="Contoh: Menertibkan kedisiplinan gerbang, mengontrol kelas jam kosong, dll."
-            className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-sky-500"
+            placeholder="Contoh: Kondisi KBM tertib, 1 guru izin tugas dinas digantikan piket..."
+            className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-sky-500 bg-white"
           />
         </div>
 
         {/* WhatsApp Preview Box */}
-        <div className="bg-slate-900 text-emerald-400 p-3.5 rounded-xl text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto border border-slate-800">
-          {generatePiketWaText()}
+        <div>
+          <p className="text-xs font-bold text-slate-700 mb-1">Pratinjau Pesan WA Guru Piket:</p>
+          <div className="bg-slate-900 text-emerald-400 p-3.5 rounded-xl text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto border border-slate-800">
+            {generatePiketWaText()}
+          </div>
         </div>
 
         {/* Actions */}
@@ -272,7 +325,7 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-extrabold text-white bg-sky-600 hover:bg-sky-700 active:bg-sky-800 rounded-lg shadow-2xs"
             >
               <Save size={14} />
-              <span>Simpan & Arsipkan</span>
+              <span>Simpan Kehadiran Piket</span>
             </button>
           </div>
         </div>

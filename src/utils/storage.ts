@@ -4,6 +4,7 @@ import {
   DEFAULT_MASTER_GURU, 
   DEFAULT_MASTER_MAPEL, 
   DEFAULT_WEEKLY_SCHEDULE, 
+  DEFAULT_JADWAL_PIKET,
   getInitialAttendanceRecords 
 } from '../data/defaultData';
 import { APP_CONFIG } from '../config/appConfig';
@@ -16,6 +17,7 @@ const STORAGE_KEYS = {
   SCHEDULES: 'madar_sirama_schedules_v1',
   LAST_SYNC: 'madar_sirama_last_sync_v1',
   GURU_PIKET: 'madar_sirama_guru_piket_v1',
+  JADWAL_PIKET: 'madar_sirama_jadwal_piket_v1',
   REKAP_APEL: 'madar_sirama_rekap_apel_v1',
 };
 
@@ -190,6 +192,27 @@ export function saveStoredGuruPiket(piketList: GuruPiketRecord[]): void {
     localStorage.setItem(STORAGE_KEYS.GURU_PIKET, JSON.stringify(piketList));
   } catch (e) {
     console.error('Failed to save guru piket', e);
+  }
+}
+
+export function loadStoredJadwalPiket(): Record<string, string[]> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.JADWAL_PIKET);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch (e) {
+    console.error('Failed to load jadwal piket', e);
+  }
+  return DEFAULT_JADWAL_PIKET;
+}
+
+export function saveStoredJadwalPiket(jadwal: Record<string, string[]>): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.JADWAL_PIKET, JSON.stringify(jadwal));
+  } catch (e) {
+    console.error('Failed to save jadwal piket', e);
   }
 }
 

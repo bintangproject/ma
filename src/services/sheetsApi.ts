@@ -10,6 +10,7 @@ export interface GasSyncResponse {
     schedules?: DayScheduleMap;
     config?: Partial<InstitutionConfig>;
     guruPiket?: GuruPiketRecord[];
+    jadwalPiket?: Record<string, string[]>;
     rekapApel?: ApelAttendanceRecord[];
   };
 }
@@ -62,17 +63,29 @@ export async function fetchFromGoogleSheets(gasUrl: string): Promise<GasSyncResp
             normalizedConfig.PERSEN_SANGAT_BAIK = Number(valStr) || 90;
           }
           if (cleanKey === 'PERSEN_BAIK') {
-            normalizedConfig.PERSEN_BAIK = Number(valStr) || 75;
+            normalizedConfig.PERSEN_BAIK = Number(valStr) || 80;
           }
           if (cleanKey === 'PERSEN_CUKUP') {
-            normalizedConfig.PERSEN_CUKUP = Number(valStr) || 60;
+            normalizedConfig.PERSEN_CUKUP = Number(valStr) || 70;
           }
         }
       }
 
-      // If LOGO_URL is set but FAVICON_URL is empty, automatically share it with FAVICON_URL
-      if (normalizedConfig.LOGO_URL && !normalizedConfig.FAVICON_URL) {
-        normalizedConfig.FAVICON_URL = normalizedConfig.LOGO_URL;
+      // Default logo URLs if empty
+      if (!normalizedConfig.LOGO_URL) {
+        normalizedConfig.LOGO_URL = 'https://cdn.jsdelivr.net/gh/contohdfi/tesfoto@main/logo%20madar.png';
+      }
+      if (!normalizedConfig.LOGO_SIRAMA_URL) {
+        normalizedConfig.LOGO_SIRAMA_URL = 'https://cdn.jsdelivr.net/gh/contohdfi/tesfoto@main/Logo%20SIRAMA.png';
+      }
+      if (!normalizedConfig.FAVICON_URL) {
+        normalizedConfig.FAVICON_URL = normalizedConfig.LOGO_SIRAMA_URL || normalizedConfig.LOGO_URL;
+      }
+      if (!normalizedConfig.NAMA_APLIKASI) {
+        normalizedConfig.NAMA_APLIKASI = 'SIRAMA';
+      }
+      if (!normalizedConfig.KEPANJANGAN_APLIKASI) {
+        normalizedConfig.KEPANJANGAN_APLIKASI = 'Sistem Informasi Rekap dan Absensi Pengajar Madrasah';
       }
 
       return {
@@ -85,6 +98,7 @@ export async function fetchFromGoogleSheets(gasUrl: string): Promise<GasSyncResp
           schedules: json.schedules || {},
           config: normalizedConfig,
           guruPiket: json.guruPiket || [],
+          jadwalPiket: json.jadwalPiket || {},
           rekapApel: json.rekapApel || [],
         },
       };
@@ -263,6 +277,7 @@ const SHEET_CONFIG = "Config";
 const SHEET_GURU = "Master_Guru";
 const SHEET_MAPEL = "Master_Mapel";
 const SHEET_KEHADIRAN = "Kehadiran";
+const SHEET_JADWAL_PIKET = "Jadwal_Piket";
 const SHEET_PIKET = "Guru_Piket";
 const SHEET_APEL = "Rekap_Apel";
 const HARI_LIST = ["Sabtu", "Ahad", "Senin", "Selasa", "Rabu", "Kamis"];
@@ -287,14 +302,14 @@ function doGet(e) {
           const v = String(cfgData[i][1] || '').trim();
           if (k) {
             config[k] = v;
-            const normKey = k.toUpperCase().replace(/[\\s-]+/g, '_');
+            const normKey = k.toUpperCase().replace(/[\s-]+/g, '_');
             config[normKey] = v;
           }
         }
       }
     }
 
-    // 2. Baca Master Guru
+    // 2. Baca Master Guru (termasuk kolom keterangan struktural / guru)
     const teachers = [];
     const guruSheet = ss.getSheetByName(SHEET_GURU);
     if (guruSheet) {
@@ -303,7 +318,8 @@ function doGet(e) {
         if (!gData[i][1]) continue;
         teachers.push({
           kode: String(gData[i][0] || ''),
-          nama: String(gData[i][1] || '')
+          nama: String(gData[i][1] || ''),
+          keterangan: String(gData[i][2] || '')
         });
       }
     }
@@ -322,7 +338,28 @@ function doGet(e) {
       }
     }
 
-    // 4. Baca Jadwal Mingguan per Hari
+    // 4. Baca Jadwal Guru Piket Mingguan
+    const jadwalPiket = {};
+    HARI_LIST.forEach(function(hari) {
+      jadwalPiket[hari] = [];
+    });
+    const jpSheet = ss.getSheetByName(SHEET_JADWAL_PIKET);
+    if (jpSheet) {
+      const jpData = jpSheet.getDataRange().getValues();
+      for (let i = 1; i < jpData.length; i++) {
+        const h = String(jpData[i][0] || '').trim();
+        if (h) {
+          jadwalPiket[h] = [
+            String(jpData[i][1] || '').trim(),
+            String(jpData[i][2] || '').trim(),
+            String(jpData[i][3] || '').trim(),
+            String(jpData[i][4] || '').trim()
+          ].filter(Boolean);
+        }
+      }
+    }
+
+    // 5. Baca Jadwal Mingguan per Hari
     const schedules = {};
     HARI_LIST.forEach(function(hari) {
       schedules[hari] = [];
@@ -343,7 +380,7 @@ function doGet(e) {
       }
     });
 
-    // 5. Baca Sheet Utama Kehadiran (KBM)
+    // 6. Baca Sheet Utama Kehadiran (KBM)
     const attendance = [];
     const attSheet = ss.getSheetByName(SHEET_KEHADIRAN);
     if (attSheet) {
@@ -366,7 +403,7 @@ function doGet(e) {
       }
     }
 
-    // 6. Baca Sheet Guru Piket
+    // 7. Baca Sheet Guru Piket Harian
     const guruPiket = [];
     const piketSheet = ss.getSheetByName(SHEET_PIKET);
     if (piketSheet) {
@@ -388,7 +425,7 @@ function doGet(e) {
       }
     }
 
-    // 7. Baca Sheet Rekap Apel Pagi
+    // 8. Baca Sheet Rekap Apel Pagi
     const rekapApel = [];
     const apelSheet = ss.getSheetByName(SHEET_APEL);
     if (apelSheet) {
@@ -416,6 +453,7 @@ function doGet(e) {
       teachers: teachers,
       subjects: subjects,
       schedules: schedules,
+      jadwalPiket: jadwalPiket,
       attendance: attendance,
       guruPiket: guruPiket,
       rekapApel: rekapApel
@@ -584,32 +622,44 @@ function setupInitialDatabase() {
     cfgSheet.getRange("A1:B1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
     
     const defaultConfigs = [
+      ["NAMA_APLIKASI", "SIRAMA"],
+      ["KEPANJANGAN_APLIKASI", "Sistem Informasi Rekap dan Absensi Pengajar Madrasah"],
+      ["NAMA_YAYASAN", "YAYASAN PONDOK PESANTREN DARUL LUGHAH WAL KAROMAH"],
       ["NAMA_LEMBAGA", "Madrasah Aliyah Darul Lughah Wal Karomah"],
       ["SINGKATAN", "MA DARUL LUGHAH WAL KAROMAH"],
       ["KOTA", "Kraksaan"],
+      ["ALAMAT_LEMBAGA", "Jl. Raya Sidopekso No. 01, Kraksaan, Probolinggo, Jawa Timur"],
+      ["IDENTITAS_LEMBAGA", "NSM: 131235130045 • NPSN: 20584412 • Terakreditasi \"A\" (Unggul)"],
+      ["JUDUL_LAPORAN_PDF", "LAPORAN REKAPITULASI KEHADIRAN PENGAJAR (KBM)"],
+      ["SUBJUDUL_LAPORAN_PDF", "Dokumen Administrasi Rekapitulasi Presensi KBM Madrasah"],
       ["TIMEZONE", "Asia/Jakarta"],
       ["LOGO_URL", "https://cdn.jsdelivr.net/gh/contohdfi/tesfoto@main/logo%20madar.png"],
-      ["FAVICON_URL", "https://cdn.jsdelivr.net/gh/contohdfi/tesfoto@main/logo%20madar.png"],
-      ["NAMA_APLIKASI", "SIRAMA"],
+      ["LOGO_SIRAMA_URL", "https://cdn.jsdelivr.net/gh/contohdfi/tesfoto@main/Logo%20SIRAMA.png"],
+      ["FAVICON_URL", "https://cdn.jsdelivr.net/gh/contohdfi/tesfoto@main/Logo%20SIRAMA.png"],
       ["NAMA_KEPALA", "Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd."],
+      ["JABATAN_KEPALA", "Kepala Madrasah Aliyah"],
       ["NAMA_STAFF", "Ust. Edi Amin, M.Hum."],
       ["JABATAN_STAFF", "Waka Kurikulum"],
       ["WARNA_UTAMA", "#0284c7"],
       ["WARNA_SEKUNDER", "#0369a1"],
       ["PERSEN_SANGAT_BAIK", "90"],
-      ["PERSEN_BAIK", "75"],
-      ["PERSEN_CUKUP", "60"],
+      ["PERSEN_BAIK", "80"],
+      ["PERSEN_CUKUP", "70"],
+      ["LABEL_SANGAT_BAIK", "Sangat Baik (Disiplin)"],
+      ["LABEL_BAIK", "Baik"],
+      ["LABEL_CUKUP", "Cukup"],
+      ["LABEL_KURANG", "Kurang (Perlu Pembinaan)"],
       ["API_KEY", ""]
     ];
     cfgSheet.getRange(2, 1, defaultConfigs.length, 2).setValues(defaultConfigs);
   }
 
-  // 2. Sheet Master Guru
+  // 2. Sheet Master Guru (Disertai Kolom Keterangan: Struktural vs Guru)
   let guruSheet = ss.getSheetByName(SHEET_GURU);
   if (!guruSheet) {
     guruSheet = ss.insertSheet(SHEET_GURU);
-    guruSheet.appendRow(["KODE GURU", "NAMA GURU"]);
-    guruSheet.getRange("A1:B1").setFontWeight("bold").setBackground("#0369a1").setFontColor("#ffffff");
+    guruSheet.appendRow(["KODE GURU", "NAMA GURU", "KETERANGAN / JABATAN"]);
+    guruSheet.getRange("A1:C1").setFontWeight("bold").setBackground("#0369a1").setFontColor("#ffffff");
   }
 
   // 3. Sheet Master Mapel
@@ -620,7 +670,25 @@ function setupInitialDatabase() {
     mapelSheet.getRange("A1:B1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
   }
 
-  // 4. Sheet Hari Jadwal
+  // 4. Sheet Jadwal Piket Mingguan (Diatur langsung dari Spreadsheet)
+  let jpSheet = ss.getSheetByName(SHEET_JADWAL_PIKET);
+  if (!jpSheet) {
+    jpSheet = ss.insertSheet(SHEET_JADWAL_PIKET);
+    jpSheet.appendRow(["HARI", "PETUGAS 1", "PETUGAS 2", "PETUGAS 3", "PETUGAS 4"]);
+    jpSheet.getRange("A1:E1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+    
+    const defaultJadwalPiket = [
+      ["Sabtu", "Ust. Edi Amin, M.Hum.", "Ust. Sholehuddin M.Pd", "Ustd. Khusnul Khotimah, SE", "Ust. Moh Lutfi, S.Pd."],
+      ["Ahad", "Ust. Muh. Fathan Zamani, M.A.", "Ust. Mashudi, M.Pd.I.", "Ustd. Meri, S.Pd.", "Ust. Aan Farisi, SS."],
+      ["Senin", "Ust. H. Djamauddin, M.Pd.I.", "Ust. Habibi, M.Pd.I.", "Ustd. Lilik Burhanatus S., SS.", "Ust. Taufik Rizal, S.Kom."],
+      ["Selasa", "Ust. Dwi Evayanto, S.Kom", "Ust. Abdul Bari, S.Pd.", "Ustd. Siti Umil Mukminah, S.Si.", "Ny. Maghfiroh, S.Pd.I."],
+      ["Rabu", "Ust. Moh. Sodik, S.Pd.", "Ust. H. Zaidi, M.H.I., M.Pd.I.", "Ustd. Dra. Diah Eviati", "Ustd. Ummi Salamah, S.Pd."],
+      ["Kamis", "Nurrahman, S.Kom.", "Ust. M. Fathur Rozak, S.Pd.", "Ustd. Sriyati, S.Pd.I.", "Ustd. Fini Novita Sari, S.Pd."]
+    ];
+    jpSheet.getRange(2, 1, defaultJadwalPiket.length, 5).setValues(defaultJadwalPiket);
+  }
+
+  // 5. Sheet Hari Jadwal
   HARI_LIST.forEach(function(hari) {
     let hSheet = ss.getSheetByName(hari);
     if (!hSheet) {
@@ -630,7 +698,7 @@ function setupInitialDatabase() {
     }
   });
 
-  // 5. Sheet Utama Kehadiran
+  // 6. Sheet Utama Kehadiran (KBM)
   let attSheet = ss.getSheetByName(SHEET_KEHADIRAN);
   if (!attSheet) {
     attSheet = ss.insertSheet(SHEET_KEHADIRAN);
@@ -641,7 +709,7 @@ function setupInitialDatabase() {
     attSheet.getRange("A1:J1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
   }
 
-  // 6. Sheet Guru Piket
+  // 7. Sheet Rekap Guru Piket
   let piketSheet = ss.getSheetByName(SHEET_PIKET);
   if (!piketSheet) {
     piketSheet = ss.insertSheet(SHEET_PIKET);
@@ -651,7 +719,7 @@ function setupInitialDatabase() {
     piketSheet.getRange("A1:I1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
   }
 
-  // 7. Sheet Rekap Apel Pagi
+  // 8. Sheet Rekap Apel Pagi
   let apelSheet = ss.getSheetByName(SHEET_APEL);
   if (!apelSheet) {
     apelSheet = ss.insertSheet(SHEET_APEL);
