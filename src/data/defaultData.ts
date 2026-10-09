@@ -1,12 +1,13 @@
 import { MasterGuru, MasterMapel, ScheduleItem, DayScheduleMap, InstitutionConfig, AttendanceRecord } from '../types/attendance';
+import { APP_CONFIG } from '../config/appConfig';
 
 export const DEFAULT_INSTITUTION_CONFIG: InstitutionConfig = {
   NAMA_LEMBAGA: 'Madrasah Aliyah Darul Lughah Wal Karomah',
   SINGKATAN: 'MA DARUL LUGHAH WAL KAROMAH',
   KOTA: 'Kraksaan',
   TIMEZONE: 'Asia/Jakarta',
-  LOGO_URL: '',
-  FAVICON_URL: '',
+  LOGO_URL: APP_CONFIG.DEFAULT_LOGO_URL,
+  FAVICON_URL: APP_CONFIG.DEFAULT_FAVICON_URL,
   NAMA_APLIKASI: 'SIMPRES KURIKULUM',
   NAMA_KEPALA: 'Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd.',
   NAMA_STAFF: 'Ust. M. Fathur Rozak, S.Pd.',
@@ -14,8 +15,8 @@ export const DEFAULT_INSTITUTION_CONFIG: InstitutionConfig = {
   WARNA_UTAMA: '#0284c7',
   WARNA_SEKUNDER: '#0369a1',
   API_KEY: '',
-  gasUrl: '',
-  autoSyncIntervalMinutes: 5,
+  gasUrl: APP_CONFIG.SPREADSHEET_GAS_URL,
+  autoSyncIntervalMinutes: 2,
 };
 
 export const DEFAULT_MASTER_GURU: MasterGuru[] = [

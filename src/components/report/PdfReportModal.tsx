@@ -140,7 +140,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               <div className="flex items-center justify-between gap-4">
                 {/* Logo Kiri */}
                 <div className="w-20 flex-shrink-0 flex justify-center">
-                  <MadarLogo size="lg" />
+                  <MadarLogo size="lg" logoUrl={config.LOGO_URL} />
                 </div>
 
                 {/* Kop Teks Tengah */}

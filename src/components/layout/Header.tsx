@@ -11,7 +11,8 @@ import {
   Database,
   CloudCheck,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  GitBranch
 } from 'lucide-react';
 import { InstitutionConfig } from '../../types/attendance';
 
@@ -26,6 +27,7 @@ interface HeaderProps {
   onExportCsv: () => void;
   onOpenSettings: () => void;
   onOpenGuide: () => void;
+  onOpenGitSync: () => void;
   isLiveConnected: boolean;
 }
 
@@ -40,6 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
   onExportCsv,
   onOpenSettings,
   onOpenGuide,
+  onOpenGitSync,
   isLiveConnected,
 }) => {
   return (
@@ -52,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
           
           {/* Logo & Identity */}
           <div className="flex items-center gap-3.5">
-            <MadarLogo size="md" />
+            <MadarLogo size="md" logoUrl={config.LOGO_URL} />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
@@ -139,6 +142,17 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Download size={14} className="text-slate-500" />
               <span className="hidden sm:inline">CSV</span>
+            </button>
+
+            {/* Sinkronkan GitHub */}
+            <button
+              type="button"
+              onClick={onOpenGitSync}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors"
+              title="Push otomatis perbaikan ke GitHub bintangproject/ma"
+            >
+              <GitBranch size={14} className="text-sky-700" />
+              <span className="hidden md:inline">Push GitHub</span>
             </button>
 
             {/* Panduan Google Apps Script */}

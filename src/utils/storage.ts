@@ -6,6 +6,7 @@ import {
   DEFAULT_WEEKLY_SCHEDULE, 
   getInitialAttendanceRecords 
 } from '../data/defaultData';
+import { APP_CONFIG } from '../config/appConfig';
 
 const STORAGE_KEYS = {
   RECORDS: 'madar_simpres_records_v2',
@@ -20,7 +21,28 @@ export function loadStoredConfig(): InstitutionConfig {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.CONFIG);
     if (raw) {
-      return { ...DEFAULT_INSTITUTION_CONFIG, ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw);
+      // If code-level SPREADSHEET_GAS_URL is provided in appConfig.ts, prioritize it
+      const gasUrl = APP_CONFIG.SPREADSHEET_GAS_URL || parsed.gasUrl || DEFAULT_INSTITUTION_CONFIG.gasUrl;
+      
+      // Auto-migrate old default logo if user had the previous test image
+      let logoUrl = parsed.LOGO_URL;
+      if (!logoUrl || logoUrl.includes('Logo%20Madin%20Up') || logoUrl.includes('Logo Madin Up')) {
+        logoUrl = APP_CONFIG.DEFAULT_LOGO_URL;
+      }
+
+      let faviconUrl = parsed.FAVICON_URL;
+      if (!faviconUrl || faviconUrl.includes('Logo%20Madin%20Up') || faviconUrl.includes('Logo Madin Up')) {
+        faviconUrl = APP_CONFIG.DEFAULT_FAVICON_URL;
+      }
+
+      return { 
+        ...DEFAULT_INSTITUTION_CONFIG, 
+        ...parsed,
+        gasUrl,
+        LOGO_URL: logoUrl,
+        FAVICON_URL: faviconUrl,
+      };
     }
   } catch (e) {
     console.error('Failed to load stored config', e);

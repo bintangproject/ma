@@ -41,6 +41,29 @@ export async function fetchFromGoogleSheets(gasUrl: string): Promise<GasSyncResp
 
     const json = await response.json();
     if (json.status === 'success' || json.success === true) {
+      // Normalize config keys from Google Sheets (handles lowercase, uppercase, spaces)
+      const rawConfig = json.config || {};
+      const normalizedConfig: Partial<InstitutionConfig> = {};
+      for (const [k, v] of Object.entries(rawConfig)) {
+        if (v !== undefined && v !== null && String(v).trim() !== '') {
+          const valStr = String(v).trim();
+          const cleanKey = k.trim().toUpperCase().replace(/[\s-]+/g, '_');
+          normalizedConfig[cleanKey as keyof InstitutionConfig] = valStr;
+          
+          if (cleanKey === 'LOGO' || cleanKey === 'LINK_LOGO' || cleanKey === 'LOGO_LINK') {
+            normalizedConfig.LOGO_URL = valStr;
+          }
+          if (cleanKey === 'FAVICON' || cleanKey === 'LINK_FAVICON' || cleanKey === 'ICON') {
+            normalizedConfig.FAVICON_URL = valStr;
+          }
+        }
+      }
+
+      // If LOGO_URL is set but FAVICON_URL is empty, automatically share it with FAVICON_URL
+      if (normalizedConfig.LOGO_URL && !normalizedConfig.FAVICON_URL) {
+        normalizedConfig.FAVICON_URL = normalizedConfig.LOGO_URL;
+      }
+
       return {
         success: true,
         message: 'Data berhasil disinkronkan dari Google Sheets!',
@@ -49,7 +72,7 @@ export async function fetchFromGoogleSheets(gasUrl: string): Promise<GasSyncResp
           teachers: json.teachers || [],
           subjects: json.subjects || [],
           schedules: json.schedules || {},
-          config: json.config || {},
+          config: normalizedConfig,
         },
       };
     } else {
@@ -146,15 +169,26 @@ function doGet(e) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     setupInitialDatabase();
     
-    // 1. Baca Config
+    // 1. Baca Config (Mendukung ada atau tidak adanya baris judul)
     const config = {};
     const cfgSheet = ss.getSheetByName(SHEET_CONFIG);
     if (cfgSheet) {
       const cfgData = cfgSheet.getDataRange().getValues();
-      for (let i = 1; i < cfgData.length; i++) {
-        const k = String(cfgData[i][0] || '').trim();
-        const v = String(cfgData[i][1] || '').trim();
-        if (k) config[k] = v;
+      if (cfgData.length > 0) {
+        const firstCol = String(cfgData[0][0] || '').trim().toUpperCase();
+        const hasHeader = firstCol === 'KEY' || firstCol === 'PARAMETER' || firstCol === 'NAMA' || firstCol === 'VARIABEL';
+        const startIdx = hasHeader ? 1 : 0;
+
+        for (let i = startIdx; i < cfgData.length; i++) {
+          const k = String(cfgData[i][0] || '').trim();
+          const v = String(cfgData[i][1] || '').trim();
+          if (k) {
+            config[k] = v;
+            // Normalisasi otomatis uppercase dengan garis bawah
+            const normKey = k.toUpperCase().replace(/[\s-]+/g, '_');
+            config[normKey] = v;
+          }
+        }
       }
     }
 
@@ -335,8 +369,8 @@ function setupInitialDatabase() {
       ["SINGKATAN", "MA DARUL LUGHAH WAL KAROMAH"],
       ["KOTA", "Kraksaan"],
       ["TIMEZONE", "Asia/Jakarta"],
-      ["LOGO_URL", ""],
-      ["FAVICON_URL", ""],
+      ["LOGO_URL", "https://cdn.jsdelivr.net/gh/contohdfi/tesfoto@main/Logo%20Madin%20Up.png"],
+      ["FAVICON_URL", "https://cdn.jsdelivr.net/gh/contohdfi/tesfoto@main/Logo%20Madin%20Up.png"],
       ["NAMA_APLIKASI", "SIMPRES KURIKULUM"],
       ["NAMA_KEPALA", "Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd."],
       ["NAMA_STAFF", "Ust. M. Fathur Rozak, S.Pd."],

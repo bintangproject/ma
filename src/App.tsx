@@ -43,7 +43,9 @@ import { PdfReportModal } from './components/report/PdfReportModal';
 import { WhatsAppShareModal } from './components/report/WhatsAppShareModal';
 import { SettingsModal } from './components/settings/SettingsModal';
 import { GasGuideModal } from './components/settings/GasGuideModal';
-import { MadarLogo } from './components/common/MadarLogo';
+import { GitHubSyncModal } from './components/settings/GitHubSyncModal';
+import { MadarLogo, parseDirectImageUrl } from './components/common/MadarLogo';
+import { APP_CONFIG } from './config/appConfig';
 
 import { 
   Layers, 
@@ -93,6 +95,7 @@ export default function App() {
   const [isWaModalOpen, setIsWaModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
+  const [isGitSyncModalOpen, setIsGitSyncModalOpen] = useState(false);
 
   // Auto-dismiss notice
   useEffect(() => {
@@ -101,6 +104,45 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [syncNotice]);
+
+  // Dynamically synchronize browser tab favicon and title with config
+  useEffect(() => {
+    const faviconUrl = config.FAVICON_URL || config.LOGO_URL || APP_CONFIG.DEFAULT_FAVICON_URL;
+    if (faviconUrl) {
+      const parsedUrl = parseDirectImageUrl(faviconUrl);
+      if (parsedUrl) {
+        // Remove existing icon links to force browser to re-render the tab icon
+        const existingLinks = document.querySelectorAll("link[rel*='icon']");
+        existingLinks.forEach((el) => el.remove());
+
+        const newLink = document.createElement('link');
+        newLink.id = 'dynamic-favicon';
+        newLink.rel = 'icon';
+        newLink.type = 'image/png';
+        newLink.href = parsedUrl;
+        document.head.appendChild(newLink);
+
+        let appleLink = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement | null;
+        if (!appleLink) {
+          appleLink = document.createElement('link');
+          appleLink.rel = 'apple-touch-icon';
+          document.head.appendChild(appleLink);
+        }
+        appleLink.href = parsedUrl;
+      }
+    }
+
+    if (config.NAMA_APLIKASI) {
+      document.title = `${config.NAMA_APLIKASI} - ${config.SINGKATAN || 'MA Darul Lughah Wal Karomah'}`;
+    }
+  }, [config.FAVICON_URL, config.LOGO_URL, config.NAMA_APLIKASI, config.SINGKATAN]);
+
+  // Initial automatic sync on mount for any device / account
+  useEffect(() => {
+    if (config.gasUrl && config.gasUrl.trim().startsWith('http')) {
+      handleSync(true);
+    }
+  }, [config.gasUrl]);
 
   // Auto-sync periodic timer if configured
   useEffect(() => {
@@ -162,6 +204,9 @@ export default function App() {
         if (result.data.config && Object.keys(result.data.config).length > 0) {
           setConfig(prev => {
             const merged = { ...prev, ...result.data!.config };
+            if (merged.LOGO_URL && !merged.FAVICON_URL) {
+              merged.FAVICON_URL = merged.LOGO_URL;
+            }
             saveStoredConfig(merged);
             return merged;
           });
@@ -317,6 +362,7 @@ export default function App() {
         onExportCsv={() => exportToCsv(filteredRecords, config)}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         onOpenGuide={() => setIsGuideModalOpen(true)}
+        onOpenGitSync={() => setIsGitSyncModalOpen(true)}
         isLiveConnected={isLiveConnected}
       />
 
@@ -464,7 +510,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           
           <div className="flex items-center gap-3">
-            <MadarLogo size="sm" />
+            <MadarLogo size="sm" logoUrl={config.LOGO_URL} />
             <div>
               <p className="font-bold text-slate-700">
                 {config.NAMA_LEMBAGA || 'MA Darul Lughah Wal Karomah'}
@@ -536,12 +582,19 @@ export default function App() {
         config={config}
         onSaveConfig={handleSaveConfig}
         onResetData={handleResetData}
+        onOpenGitSync={() => setIsGitSyncModalOpen(true)}
       />
 
       {/* Google Apps Script & Vercel Deployment Tutorial Modal */}
       <GasGuideModal
         isOpen={isGuideModalOpen}
         onClose={() => setIsGuideModalOpen(false)}
+      />
+
+      {/* GitHub Auto-Sync & Vercel Fix Modal */}
+      <GitHubSyncModal
+        isOpen={isGitSyncModalOpen}
+        onClose={() => setIsGitSyncModalOpen(false)}
       />
 
     </div>

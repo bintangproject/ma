@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { InstitutionConfig } from '../../types/attendance';
-import { Settings, Save, RefreshCw, CheckCircle2, AlertCircle, RotateCcw, Database } from 'lucide-react';
+import { Settings, Save, RefreshCw, CheckCircle2, AlertCircle, RotateCcw, Database, GitBranch, Copy, Check, Code, Image as ImageIcon } from 'lucide-react';
 import { fetchFromGoogleSheets } from '../../services/sheetsApi';
+import { MadarLogo, parseDirectImageUrl } from '../common/MadarLogo';
+import { APP_CONFIG } from '../../config/appConfig';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -10,6 +12,7 @@ interface SettingsModalProps {
   config: InstitutionConfig;
   onSaveConfig: (updated: InstitutionConfig) => void;
   onResetData: () => void;
+  onOpenGitSync?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -18,10 +21,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   config,
   onSaveConfig,
   onResetData,
+  onOpenGitSync,
 }) => {
   const [formData, setFormData] = useState<InstitutionConfig>(config);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const handleTestConnection = async () => {
     if (!formData.gasUrl) {
@@ -41,6 +46,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       success: res.success,
       message: res.message,
     });
+
+    // If config was returned, merge it into preview form
+    if (res.success && res.data?.config) {
+      setFormData(prev => ({
+        ...prev,
+        ...res.data!.config,
+      }));
+    }
+  };
+
+  const handleCopyAppConfigSnippet = () => {
+    const url = formData.gasUrl?.trim() || '';
+    const snippet = `// Di dalam file src/config/appConfig.ts:\nexport const APP_CONFIG = {\n  SPREADSHEET_GAS_URL: '${url}',\n  DEFAULT_LOGO_URL: '${formData.LOGO_URL || APP_CONFIG.DEFAULT_LOGO_URL}',\n  DEFAULT_FAVICON_URL: '${formData.FAVICON_URL || formData.LOGO_URL || APP_CONFIG.DEFAULT_FAVICON_URL}',\n};`;
+    navigator.clipboard.writeText(snippet);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 3000);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -60,6 +81,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         
+        {/* BAGIAN REPOSITORI GITHUB & VERCEL */}
+        {onOpenGitSync && (
+          <div className="bg-gradient-to-r from-slate-900 to-sky-950 text-white p-3.5 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-white/10 rounded-lg">
+                <GitBranch size={16} className="text-sky-300" />
+              </div>
+              <div>
+                <p className="font-bold text-xs text-white">Sinkronisasi Otomatis ke GitHub & Vercel</p>
+                <p className="text-[11px] text-slate-300">Push perbaikan package.json & vercel.json langsung ke repositori Anda</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenGitSync();
+              }}
+              className="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs rounded-lg transition-colors shrink-0"
+            >
+              Buka Sinkronisasi GitHub
+            </button>
+          </div>
+        )}
+
         {/* BAGIAN 1: GOOGLE APPS SCRIPT DATABASE */}
         <div className="bg-sky-50/70 p-4 rounded-xl border border-sky-200/80 space-y-3">
           <div className="flex items-center justify-between">
@@ -109,6 +156,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <span>{testResult.message}</span>
             </div>
           )}
+
+          {/* CARA KONEKSI REALTIME SEMUA PERANGKAT */}
+          <div className="bg-sky-100/70 border border-sky-300/80 rounded-lg p-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
+            <div className="text-sky-950">
+              <span className="font-bold flex items-center gap-1.5 text-sky-900">
+                <Code size={13} />
+                <span>Koneksi Otomatis Semua Perangkat:</span>
+              </span>
+              <p className="text-[11px] text-sky-800 mt-0.5">
+                Taruh URL ini langsung di file <strong>src/config/appConfig.ts</strong> agar HP & laptop manapun langsung terbuka secara realtime.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyAppConfigSnippet}
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-sky-800 bg-white hover:bg-sky-50 border border-sky-300 rounded shadow-2xs transition-colors shrink-0"
+              title="Salin baris kode untuk ditaruh di src/config/appConfig.ts"
+            >
+              {copiedCode ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+              <span>{copiedCode ? 'Tersalin!' : 'Salin Kode appConfig.ts'}</span>
+            </button>
+          </div>
 
           <div className="flex items-center justify-between pt-1 text-xs text-slate-600">
             <span>Interval Sinkronisasi Otomatis:</span>
@@ -312,6 +381,53 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
             </div>
 
+            {/* FAVICON_URL */}
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                FAVICON_URL (Ikon Tab Browser)
+              </label>
+              <input
+                type="text"
+                placeholder="https://.../favicon.png"
+                value={formData.FAVICON_URL || ''}
+                onChange={(e) => setFormData({ ...formData, FAVICON_URL: e.target.value })}
+                className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+              />
+            </div>
+
+          </div>
+
+          {/* PRATINJAU LOGO & FAVICON */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white rounded-lg border border-slate-200 shadow-2xs">
+                <MadarLogo size="md" logoUrl={formData.LOGO_URL} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-800">Pratinjau Logo Lembaga</p>
+                <p className="text-[11px] text-slate-500">
+                  {formData.LOGO_URL ? 'Menggunakan URL kustom (CDN jsDelivr)' : 'Menggunakan logo default lembaga'}
+                </p>
+              </div>
+            </div>
+
+            <div className="sm:border-l sm:border-slate-200 sm:pl-4 flex items-center gap-2">
+              <div className="w-7 h-7 bg-white rounded border border-slate-200 flex items-center justify-center shadow-2xs p-1">
+                <img
+                  src={parseDirectImageUrl(formData.FAVICON_URL || formData.LOGO_URL) || APP_CONFIG.DEFAULT_FAVICON_URL}
+                  alt="Favicon"
+                  className="w-5 h-5 object-contain"
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              </div>
+              <p className="text-[11px] text-slate-600">
+                Pratinjau Favicon Tab Browser
+              </p>
+            </div>
           </div>
         </div>
 
