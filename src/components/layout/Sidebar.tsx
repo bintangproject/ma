@@ -84,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-4 border-b border-slate-100 bg-gradient-to-b from-sky-50/50 to-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <MadarLogo size="lg" logoUrl={config.LOGO_URL} />
+              <MadarLogo size="lg" logoUrl={config.LOGO_SIRAMA_URL || config.LOGO_URL} />
               <div>
                 <div className="flex items-center gap-1.5">
                   <h2 className="text-lg font-extrabold text-sky-800 tracking-tight">

@@ -69,20 +69,19 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
-                  <span className="text-sky-700">{config.NAMA_APLIKASI || 'SIRAMA'}</span>
-                  <span className="text-slate-300 font-normal hidden md:inline">•</span>
-                  <span className="hidden md:inline text-xs font-semibold text-slate-700">
-                    {config.KEPANJANGAN_APLIKASI || 'Sistem Informasi Rekap dan Absensi Pengajar Madrasah'}
-                  </span>
-                </h1>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
+                    <span className="text-sky-700">{config.NAMA_APLIKASI || 'SIRAMA'}</span>
+                  </h1>
+                </div>
+                <p className="text-[10px] text-slate-600 font-semibold leading-tight">
+                  {config.KEPANJANGAN_APLIKASI || 'Sistem Informasi Rekap dan Absensi Pengajar Madrasah'}
+                </p>
+                <p className="text-[10px] text-slate-500 font-medium">
+                  {config.SINGKATAN || 'MA Darul Lughah Wal Karomah'} • {config.KOTA || 'Kraksaan'}
+                </p>
               </div>
-              <p className="text-[10px] text-slate-500 font-medium">
-                {config.SINGKATAN || 'MA Darul Lughah Wal Karomah'} • {config.KOTA || 'Kraksaan'}
-              </p>
-            </div>
           </div>
 
           {/* Sync Status & Action Buttons */}

@@ -144,7 +144,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           }
           const blobUrl = URL.createObjectURL(blob);
           const link = document.createElement('a');
-          link.download = `Laporan_SIRAMA_${filterState.startDate}_sd_${filterState.endDate}.jpg`;
+          link.download = `Laporan_SIRAMA_${filterState.startDate}_s.d._${filterState.endDate}.jpg`;
           link.href = blobUrl;
           document.body.appendChild(link);
           link.click();
@@ -176,7 +176,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     try {
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const link = document.createElement('a');
-      link.download = `Laporan_SIRAMA_${filterState.startDate}_sd_${filterState.endDate}.jpg`;
+      link.download = `Laporan_SIRAMA_${filterState.startDate}_s.d._${filterState.endDate}.jpg`;
       link.href = imgData;
       document.body.appendChild(link);
       link.click();
@@ -229,7 +229,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
         }
       }
 
-      pdf.save(`Laporan_SIRAMA_${filterState.startDate}_sd_${filterState.endDate}.pdf`);
+      pdf.save(`Laporan_SIRAMA_${filterState.startDate}_s.d._${filterState.endDate}.pdf`);
     } catch (err) {
       console.error('Error generating PDF:', err);
       // Fallback ke cetak iframe
@@ -273,7 +273,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
       <!DOCTYPE html>
       <html>
         <head>
-          <title></title>
+          <title>Laporan_SIRAMA_${filterState.startDate}_sd_${filterState.endDate}</title>
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           ${styleTags}
