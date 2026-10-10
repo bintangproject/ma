@@ -1,5 +1,6 @@
 import { MasterGuru, MasterMapel, ScheduleItem, DayScheduleMap, InstitutionConfig, AttendanceRecord } from '../types/attendance';
 import { APP_CONFIG } from '../config/appConfig';
+import { formatLocalISODate } from '../utils/formatters';
 
 export const DEFAULT_INSTITUTION_CONFIG: InstitutionConfig = {
   NAMA_APLIKASI: 'SIRAMA',
@@ -259,7 +260,7 @@ export const JAM_KE_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export function getInitialAttendanceRecords(): AttendanceRecord[] {
   const today = new Date();
-  const formatISO = (d: Date) => d.toISOString().split('T')[0];
+  const formatISO = (d: Date) => formatLocalISODate(d);
   const records: AttendanceRecord[] = [];
 
   const dayNamesIndo = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];

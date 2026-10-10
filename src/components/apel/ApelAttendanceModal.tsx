@@ -8,7 +8,7 @@ import {
   MasterGuru 
 } from '../../types/attendance';
 import { DEFAULT_STRUKTURAL_MADAR, DAFTAR_HARI } from '../../data/defaultData';
-import { getIndonesianDayName, formatIndonesianDate, STATUS_CONFIG } from '../../utils/formatters';
+import { getIndonesianDayName, formatIndonesianDate, STATUS_CONFIG, formatLocalISODate } from '../../utils/formatters';
 import { generateWhatsAppApelMessage } from '../../utils/exportUtils';
 import { Award, Save, Copy, Check, Share2, Sparkles, Calendar, Clock, CheckCircle2, UserCheck, AlertCircle } from 'lucide-react';
 
@@ -31,7 +31,7 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
   config,
   teachers,
 }) => {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = formatLocalISODate();
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const detectedHari = getIndonesianDayName(todayStr);
   const [selectedHari, setSelectedHari] = useState(DAFTAR_HARI.includes(detectedHari) ? detectedHari : 'Sabtu');

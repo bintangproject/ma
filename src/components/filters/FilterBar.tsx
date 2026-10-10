@@ -11,7 +11,7 @@ import {
   Tag 
 } from 'lucide-react';
 import { KELAS_OPTIONS, MAPEL_OPTIONS } from '../../data/defaultData';
-import { getMadarWeeklyRange, getMadarMonthlyRange } from '../../utils/formatters';
+import { getMadarWeeklyRange, getMadarMonthlyRange, formatLocalISODate } from '../../utils/formatters';
 
 interface FilterBarProps {
   filter: FilterState;
@@ -31,16 +31,15 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   // Helper to calculate date presets
   const applyPreset = (preset: DateFilterPreset) => {
     const today = new Date();
-    const formatISO = (d: Date) => d.toISOString().split('T')[0];
 
-    let startDate = formatISO(today);
-    let endDate = formatISO(today);
+    let startDate = formatLocalISODate(today);
+    let endDate = formatLocalISODate(today);
 
     if (preset === 'yesterday') {
       const y = new Date(today);
       y.setDate(today.getDate() - 1);
-      startDate = formatISO(y);
-      endDate = formatISO(y);
+      startDate = formatLocalISODate(y);
+      endDate = formatLocalISODate(y);
     } else if (preset === 'this_week') {
       // Madrasah cycle: Sabtu s.d. Kamis
       const range = getMadarWeeklyRange(today);

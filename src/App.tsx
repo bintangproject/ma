@@ -37,7 +37,7 @@ import {
   getInitialAttendanceRecords 
 } from './data/defaultData';
 import { exportToCsv } from './utils/exportUtils';
-import { calculateTeacherSummaries, formatIndonesianDate, getMadarMonthlyRange } from './utils/formatters';
+import { calculateTeacherSummaries, formatIndonesianDate, getMadarMonthlyRange, formatLocalISODate } from './utils/formatters';
 import { 
   fetchFromGoogleSheets, 
   postBulkDayAttendance, 
@@ -106,7 +106,7 @@ export default function App() {
 
   // 2. Filter State: Default range bulanan MA Darul Lughah Wal Karomah (26 bulan lalu s.d. 25 bulan ini)
   const initialMonthRange = useMemo(() => getMadarMonthlyRange(new Date()), []);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = formatLocalISODate();
 
   const [filter, setFilter] = useState<FilterState>({
     preset: 'this_month',

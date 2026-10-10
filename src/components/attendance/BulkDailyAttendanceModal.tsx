@@ -7,7 +7,7 @@ import {
   MasterGuru, 
   MasterMapel 
 } from '../../types/attendance';
-import { getIndonesianDayName, formatIndonesianDate, STATUS_CONFIG } from '../../utils/formatters';
+import { getIndonesianDayName, formatIndonesianDate, STATUS_CONFIG, formatLocalISODate } from '../../utils/formatters';
 import { DAFTAR_HARI, KELAS_OPTIONS } from '../../data/defaultData';
 import { 
   CheckCircle2, 
@@ -51,7 +51,7 @@ export const BulkDailyAttendanceModal: React.FC<BulkDailyAttendanceModalProps> =
   teachers,
   subjects,
 }) => {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = formatLocalISODate();
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedHari, setSelectedHari] = useState(getIndonesianDayName(todayStr));
   const [items, setItems] = useState<DayAttendanceItem[]>([]);

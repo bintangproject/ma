@@ -283,3 +283,14 @@ export function getPerformanceCategory(
     dotColor: 'bg-rose-500',
   };
 }
+
+/**
+ * Format Date to local YYYY-MM-DD (avoiding UTC timezone shift)
+ */
+export function formatLocalISODate(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+

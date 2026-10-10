@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { GuruPiketRecord, MasterGuru, InstitutionConfig, PiketStatus } from '../../types/attendance';
-import { getIndonesianDayName, formatIndonesianDate } from '../../utils/formatters';
+import { getIndonesianDayName, formatIndonesianDate, formatLocalISODate } from '../../utils/formatters';
 import { DEFAULT_JADWAL_PIKET } from '../../data/defaultData';
 import { Shield, Save, Copy, Check, Share2, Calendar, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
 
@@ -24,7 +24,7 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
   onSavePiket,
   config,
 }) => {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = formatLocalISODate();
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedHari, setSelectedHari] = useState(getIndonesianDayName(todayStr));
 

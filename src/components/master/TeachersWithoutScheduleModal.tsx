@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Modal } from '../common/Modal';
 import { MasterGuru, DayScheduleMap, InstitutionConfig } from '../../types/attendance';
 import { DAFTAR_HARI } from '../../data/defaultData';
-import { getIndonesianDayName } from '../../utils/formatters';
+import { getIndonesianDayName, formatLocalISODate } from '../../utils/formatters';
 import { UserX, CalendarDays, Search, Copy, Check, Users, ShieldAlert, Sparkles } from 'lucide-react';
 
 interface TeachersWithoutScheduleModalProps {
@@ -20,7 +20,7 @@ export const TeachersWithoutScheduleModal: React.FC<TeachersWithoutScheduleModal
   schedules,
   config,
 }) => {
-  const todayDayName = getIndonesianDayName(new Date().toISOString().split('T')[0]);
+  const todayDayName = getIndonesianDayName(formatLocalISODate());
   const [selectedHari, setSelectedHari] = useState<string>(
     DAFTAR_HARI.includes(todayDayName) ? todayDayName : 'Sabtu'
   );

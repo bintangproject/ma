@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Modal } from '../common/Modal';
 import { DayScheduleMap, InstitutionConfig, GuruPiketRecord } from '../../types/attendance';
 import { DAFTAR_HARI, DEFAULT_JADWAL_PIKET } from '../../data/defaultData';
-import { formatIndonesianDate, getIndonesianDayName } from '../../utils/formatters';
+import { formatIndonesianDate, getIndonesianDayName, formatLocalISODate } from '../../utils/formatters';
 import { generateWhatsAppDailyScheduleMessage } from '../../utils/exportUtils';
 import { Calendar, Copy, Check, Share2, Search, BookOpen, Clock, School } from 'lucide-react';
 
@@ -23,7 +23,7 @@ export const DailyScheduleShareModal: React.FC<DailyScheduleShareModalProps> = (
   guruPiketHistory = [],
   jadwalPiket = {},
 }) => {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = formatLocalISODate();
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const detectedHari = getIndonesianDayName(selectedDate);
   const selectedHari = DAFTAR_HARI.includes(detectedHari) ? detectedHari : 'Sabtu';
