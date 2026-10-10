@@ -109,9 +109,9 @@ export default function App() {
   const todayStr = formatLocalISODate();
 
   const [filter, setFilter] = useState<FilterState>({
-    preset: 'this_month',
-    startDate: initialMonthRange.startDate,
-    endDate: initialMonthRange.endDate,
+    preset: 'today',
+    startDate: todayStr,
+    endDate: todayStr,
     searchQuery: '',
     selectedGuru: '',
     selectedKelas: '',

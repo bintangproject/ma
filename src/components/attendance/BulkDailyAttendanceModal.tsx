@@ -212,19 +212,8 @@ export const BulkDailyAttendanceModal: React.FC<BulkDailyAttendanceModalProps> =
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="font-bold text-slate-800 outline-none cursor-pointer text-xs"
               />
-            </div>
-
-            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 shadow-2xs">
-              <span className="font-semibold text-slate-600">Jadwal Hari:</span>
-              <select
-                value={selectedHari}
-                onChange={(e) => handleHariChange(e.target.value)}
-                className="font-bold text-sky-800 outline-none cursor-pointer text-xs"
-              >
-                {DAFTAR_HARI.map(h => (
-                  <option key={h} value={h}>{h}</option>
-                ))}
-              </select>
+              <span className="text-slate-400">|</span>
+              <span className="font-bold text-sky-800">Hari: {selectedHari}</span>
             </div>
           </div>
 
