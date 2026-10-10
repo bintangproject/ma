@@ -84,15 +84,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-4 border-b border-slate-100 bg-gradient-to-b from-sky-50/50 to-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <MadarLogo size="md" logoUrl={config.LOGO_URL} />
+              <MadarLogo size="lg" logoUrl={config.LOGO_URL} />
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h2 className="text-base font-extrabold text-sky-800 tracking-tight">
+                  <h2 className="text-lg font-extrabold text-sky-800 tracking-tight">
                     {config.NAMA_APLIKASI || 'SIRAMA'}
                   </h2>
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
-                    {config.JABATAN_STAFF || 'Kurikulum'}
-                  </span>
                 </div>
                 <p className="text-[11px] text-slate-500 font-medium leading-tight">
                   {config.SINGKATAN || 'MA Darul Lughah Wal Karomah'}

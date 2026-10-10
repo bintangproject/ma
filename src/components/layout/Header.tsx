@@ -56,7 +56,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           
-          {/* Logo & Identity */}
+          {/* Identity (Logo removed) */}
           <div className="flex items-center gap-3">
             {onToggleSidebar && (
               <button
@@ -69,25 +69,18 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            <MadarLogo size="md" logoUrl={config.LOGO_SIRAMA_URL || config.LOGO_URL} />
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
+                <h1 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
                   <span className="text-sky-700">{config.NAMA_APLIKASI || 'SIRAMA'}</span>
                   <span className="text-slate-300 font-normal hidden md:inline">•</span>
-                  <span className="hidden md:inline text-xs sm:text-sm font-semibold text-slate-700">
+                  <span className="hidden md:inline text-xs font-semibold text-slate-700">
                     {config.KEPANJANGAN_APLIKASI || 'Sistem Informasi Rekap dan Absensi Pengajar Madrasah'}
                   </span>
                 </h1>
-                <span className="hidden xl:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-100 text-sky-800 border border-sky-200">
-                  {config.JABATAN_STAFF || 'Kurikulum'}
-                </span>
               </div>
-              <p className="text-xs text-slate-500 font-medium">
-                <span className="md:hidden block text-slate-700 font-semibold mb-0.5">
-                  {config.KEPANJANGAN_APLIKASI || 'Sistem Informasi Rekap dan Absensi Pengajar Madrasah'}
-                </span>
-                <span>{config.SINGKATAN || 'MA Darul Lughah Wal Karomah'}</span> • <span>{config.KOTA || 'Kraksaan'}</span>
+              <p className="text-[10px] text-slate-500 font-medium">
+                {config.SINGKATAN || 'MA Darul Lughah Wal Karomah'} • {config.KOTA || 'Kraksaan'}
               </p>
             </div>
           </div>
