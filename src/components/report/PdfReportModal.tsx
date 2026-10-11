@@ -808,9 +808,9 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
       </div>
       
       {/* Hidden Berita Acara JPG View */}
-      <div className="hidden">
+      <div className="absolute -top-[9999px] -left-[9999px]">
         <div ref={beritaAcaraRef}>
-          <BeritaAcaraJpgView records={currentRecords} periodeText={periodeText} />
+          <BeritaAcaraJpgView records={currentRecords} periodeText={periodeText} stats={stats} logoUrl={logoMadrasah} base64Logo={base64Madrasah} />
         </div>
       </div>
     </Modal>
