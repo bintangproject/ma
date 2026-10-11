@@ -125,8 +125,7 @@ export function generateWhatsAppMessage(
   text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
   text += `✍️ *Tertanda:*\n`;
   text += `Waka Kurikulum : *${config.NAMA_STAFF || 'Ust. Edi Amin, M.Hum.'}*\n`;
-  text += `Kepala Madrasah: *${config.NAMA_KEPALA || 'Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd.'}*\n\n`;
-  text += `_Dikelola melalui SIRAMA (Sistem Informasi Rekap & Absensi Pengajar Madrasah)_`;
+  text += `Kepala Madrasah: *${config.NAMA_KEPALA || 'Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd.'}*`;
 
   return text;
 }
@@ -208,7 +207,7 @@ export function generateWhatsAppApelMessage(
 
   const institutionName = (config.SINGKATAN || config.NAMA_LEMBAGA || 'MA DARUL LUGHAH WAL KAROMAH').toUpperCase();
 
-  let text = `🎖️ *LAPORAN PRESENSI APEL PAGI PENGAJAR*\n`;
+  let text = `🎖️ *LAPORAN PRESENSI APEL PAGI PIMPINAN, KARYAWAN, DAN DEWAN GURU*\n`;
   text += `🏫 *${institutionName}*\n`;
   text += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
   text += `📅 *Hari/Tanggal:* ${hariStr}, ${formatIndonesianDate(tanggalStr, false)}\n`;
@@ -261,8 +260,7 @@ export function generateWhatsAppApelMessage(
   }
 
   text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-  text += `_Disampaikan oleh Staff Kurikulum & Kedisiplinan Madrasah._\n`;
-  text += `_SIRAMA (Sistem Informasi Rekap dan Absensi Pengajar Madrasah)_`;
+  text += `_Waka Kurikulum: ${config.NAMA_STAFF || 'Ust. Edi Amin, M.Hum.'}_`;
 
   return text;
 }
