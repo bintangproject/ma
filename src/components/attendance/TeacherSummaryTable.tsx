@@ -29,7 +29,7 @@ export const TeacherSummaryTable: React.FC<TeacherSummaryTableProps> = ({
         <div>
           <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
             <UserCheck size={16} className="text-sky-600" />
-            <span>Rekapitulasi Kehadiran Akumulasi Per Pengajar</span>
+            <span>Rekapitulasi Kehadiran Akumulasi Per Guru</span>
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
             Daftar persentase kehadiran dan jumlah jam KBM guru pada periode terpilih
@@ -168,7 +168,7 @@ export const TeacherSummaryTable: React.FC<TeacherSummaryTableProps> = ({
           <span><strong>A:</strong> Alpa</span>
           <span><strong>TD:</strong> Tugas Dinas</span>
         </div>
-        <span>Total Pengajar: {filtered.length} Orang</span>
+        <span>Total Guru: {filtered.length} Orang</span>
       </div>
 
     </div>

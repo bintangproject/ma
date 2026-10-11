@@ -100,10 +100,10 @@ export default defineConfig(() => {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rekap Kehadiran Pengajar MA Darul Lughah Wal Karomah</title>
-    <meta name="description" content="Sistem Rekapitulasi Kehadiran Guru & Pengajar MA Darul Lughah Wal Karomah Kraksaan berbasis Google Sheets & Apps Script dengan ekspor PDF." />
-    <meta property="og:title" content="Rekap Kehadiran Pengajar MA Darul Lughah Wal Karomah" />
-    <meta property="og:description" content="Sistem Rekapitulasi Kehadiran Guru & Pengajar MA Darul Lughah Wal Karomah Kraksaan berbasis Google Sheets & Apps Script dengan ekspor PDF." />
+    <title>Rekap Kehadiran Guru MA Darul Lughah Wal Karomah</title>
+    <meta name="description" content="Sistem Rekapitulasi Kehadiran Guru MA Darul Lughah Wal Karomah Kraksaan berbasis Google Sheets & Apps Script dengan ekspor PDF." />
+    <meta property="og:title" content="Rekap Kehadiran Guru MA Darul Lughah Wal Karomah" />
+    <meta property="og:description" content="Sistem Rekapitulasi Kehadiran Guru MA Darul Lughah Wal Karomah Kraksaan berbasis Google Sheets & Apps Script dengan ekspor PDF." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" id="dynamic-favicon" type="image/png" href="https://cdn.jsdelivr.net/gh/contohdfi/tesfoto@main/logo%20madar.png" />

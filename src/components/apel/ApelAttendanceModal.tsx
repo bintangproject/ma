@@ -172,7 +172,7 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Presensi Pengajar Wajib Apel Pagi"
+      title="Presensi Guru Wajib Apel Pagi"
       subtitle="Presensi apel pagi untuk Struktural dan KBM 1 hari ini"
       icon={<Award size={20} className="text-amber-600" />}
       maxWidth="3xl"

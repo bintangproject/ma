@@ -191,8 +191,8 @@ export const BulkDailyAttendanceModal: React.FC<BulkDailyAttendanceModalProps> =
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Input Presensi Harian Pengajar"
-      subtitle="Semua jadwal otomatis terset HADIR. Ubah status hanya bagi pengajar yang berhalangan."
+      title="Input Presensi Harian Guru"
+      subtitle="Semua jadwal otomatis terset HADIR. Ubah status hanya bagi guru yang berhalangan."
       icon={<CheckCheck size={20} className="text-sky-600" />}
       maxWidth="5xl"
     >

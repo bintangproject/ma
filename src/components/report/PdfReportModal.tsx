@@ -568,7 +568,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                   <thead>
                     <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b border-slate-800">
                       <th className="border border-slate-800 py-1.5 px-2 w-8">No</th>
-                      <th className="border border-slate-800 py-1.5 px-2 text-left">Nama Pengajar</th>
+                      <th className="border border-slate-800 py-1.5 px-2 text-left">Nama Guru</th>
                       <th className="border border-slate-800 py-1.5 px-1.5 w-12">Total Sesi</th>
                       <th className="border border-slate-800 py-1.5 px-1 w-8">H</th>
                       <th className="border border-slate-800 py-1.5 px-1 w-8">I</th>
@@ -623,7 +623,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                     <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b border-slate-800">
                       <th className="border border-slate-800 py-1.5 px-1.5 w-8">No</th>
                       <th className="border border-slate-800 py-1.5 px-2 w-20">Tanggal</th>
-                      <th className="border border-slate-800 py-1.5 px-2 text-left">Nama Pengajar</th>
+                      <th className="border border-slate-800 py-1.5 px-2 text-left">Nama Guru</th>
                       <th className="border border-slate-800 py-1.5 px-2 text-left">Mata Pelajaran</th>
                       <th className="border border-slate-800 py-1.5 px-2 w-20">Kelas</th>
                       <th className="border border-slate-800 py-1.5 px-2 w-14">Jam</th>

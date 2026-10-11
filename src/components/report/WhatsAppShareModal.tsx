@@ -54,7 +54,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Bagikan Rekap ke WhatsApp"
-      subtitle="Format pesan rapi siap kirim ke Grup Pengajar atau Pimpinan Madrasah"
+      subtitle="Format pesan rapi siap kirim ke Grup Guru atau Pimpinan Madrasah"
       icon={<MessageSquare size={20} className="text-emerald-600" />}
       maxWidth="lg"
     >

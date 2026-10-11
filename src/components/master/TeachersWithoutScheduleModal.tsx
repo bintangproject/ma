@@ -83,9 +83,9 @@ export const TeachersWithoutScheduleModal: React.FC<TeachersWithoutScheduleModal
             <UserX size={18} />
           </div>
           <div>
-            <h4 className="font-bold text-sky-950 text-sm mb-0.5">Informasi Ketersediaan Pengajar</h4>
+            <h4 className="font-bold text-sky-950 text-sm mb-0.5">Informasi Ketersediaan Guru</h4>
             <p className="text-sky-800 leading-relaxed">
-              Daftar di bawah ini membandingkan <strong>Daftar Keseluruhan Pengajar ({teachers.length} guru)</strong> dengan jadwal KBM yang tercatat pada hari <strong>{selectedHari}</strong>. Guru yang tercantum di sini tidak memiliki jadwal mengajar tatap muka pada hari tersebut.
+              Daftar di bawah ini membandingkan <strong>Daftar Keseluruhan Guru ({teachers.length} guru)</strong> dengan jadwal KBM yang tercatat pada hari <strong>{selectedHari}</strong>. Guru yang tercantum di sini tidak memiliki jadwal mengajar tatap muka pada hari tersebut.
             </p>
           </div>
         </div>
@@ -161,7 +161,7 @@ export const TeachersWithoutScheduleModal: React.FC<TeachersWithoutScheduleModal
               <tr>
                 <th className="py-2.5 px-3 w-12 text-center">No</th>
                 <th className="py-2.5 px-3 w-20 text-center">Kode</th>
-                <th className="py-2.5 px-3">Nama Pengajar & Gelar</th>
+                <th className="py-2.5 px-3">Nama Guru & Gelar</th>
                 <th className="py-2.5 px-3">Status / Keterangan</th>
                 <th className="py-2.5 px-3 text-right">Status Hari {selectedHari}</th>
               </tr>

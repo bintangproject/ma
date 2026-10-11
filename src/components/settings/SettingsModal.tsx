@@ -433,7 +433,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 type="text"
                 value={formData.KEPANJANGAN_APLIKASI || ''}
                 onChange={(e) => setFormData({ ...formData, KEPANJANGAN_APLIKASI: e.target.value })}
-                placeholder="Sistem Informasi Rekap dan Absensi Pengajar Madrasah"
+                placeholder="Sistem Informasi Rekap dan Absensi Guru Madrasah"
                 className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
               />
             </div>
