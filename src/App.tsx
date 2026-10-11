@@ -823,6 +823,7 @@ export default function App() {
         isOpen={isPiketModalOpen}
         onClose={() => setIsPiketModalOpen(false)}
         teachers={teachers}
+        schedules={schedules}
         jadwalPiket={jadwalPiket}
         piketHistory={guruPiketHistory}
         onSavePiket={handleSaveGuruPiket}
