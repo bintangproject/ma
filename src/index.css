@@ -58,4 +58,9 @@
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
+
+  .print-page {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
 }

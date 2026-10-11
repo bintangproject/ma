@@ -228,7 +228,8 @@ export function generateWhatsAppApelMessage(
     text += `_Tidak ada_\n`;
   } else {
     hadirList.forEach((r, i) => {
-      text += `${i + 1}. *${r.nama}* (${r.jabatanAtauJadwal})\n`;
+      const roleStr = r.jabatanAtauJadwal ? ` (${r.jabatanAtauJadwal})` : '';
+      text += `${i + 1}. *${r.nama}*${roleStr}\n`;
     });
   }
 
@@ -236,7 +237,8 @@ export function generateWhatsAppApelMessage(
   if (izinList.length > 0) {
     text += `\n✉️ *DAFTAR IZIN (${izinList.length} Orang):*\n`;
     izinList.forEach((r, i) => {
-      text += `${i + 1}. *${r.nama}* (${r.jabatanAtauJadwal})${r.keterangan ? ` — _${r.keterangan}_` : ''}\n`;
+      const roleStr = r.jabatanAtauJadwal ? ` (${r.jabatanAtauJadwal})` : '';
+      text += `${i + 1}. *${r.nama}*${roleStr}${r.keterangan ? ` — _${r.keterangan}_` : ''}\n`;
     });
   }
 
@@ -244,7 +246,8 @@ export function generateWhatsAppApelMessage(
   if (sakitList.length > 0) {
     text += `\n🏥 *DAFTAR SAKIT (${sakitList.length} Orang):*\n`;
     sakitList.forEach((r, i) => {
-      text += `${i + 1}. *${r.nama}* (${r.jabatanAtauJadwal})${r.keterangan ? ` — _${r.keterangan}_` : ''}\n`;
+      const roleStr = r.jabatanAtauJadwal ? ` (${r.jabatanAtauJadwal})` : '';
+      text += `${i + 1}. *${r.nama}*${roleStr}${r.keterangan ? ` — _${r.keterangan}_` : ''}\n`;
     });
   }
 
@@ -252,7 +255,8 @@ export function generateWhatsAppApelMessage(
   if (alpaList.length > 0) {
     text += `\n❌ *DAFTAR ALPA / TANPA KETERANGAN (${alpaList.length} Orang):*\n`;
     alpaList.forEach((r, i) => {
-      text += `${i + 1}. *${r.nama}* (${r.jabatanAtauJadwal})${r.keterangan ? ` — _${r.keterangan}_` : ''}\n`;
+      const roleStr = r.jabatanAtauJadwal ? ` (${r.jabatanAtauJadwal})` : '';
+      text += `${i + 1}. *${r.nama}*${roleStr}${r.keterangan ? ` — _${r.keterangan}_` : ''}\n`;
     });
   }
 

@@ -114,7 +114,7 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
           hari: selectedHari,
           nama: t.nama,
           kategori: 'PENGAJAR_SESI_1',
-          jabatanAtauJadwal: t.jadwalStr,
+          jabatanAtauJadwal: '',
           status: 'HADIR',
           keterangan: '',
         });
