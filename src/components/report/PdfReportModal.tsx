@@ -13,6 +13,7 @@ import { Printer, Download, RefreshCw, FileText, Image as ImageIcon } from 'luci
 import { APP_CONFIG } from '../../config/appConfig';
 import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
+import { BeritaAcaraJpgView } from './BeritaAcaraJpgView';
 
 interface PdfReportModalProps {
   isOpen: boolean;
@@ -31,10 +32,12 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   filterState,
   onChangeFilterState,
 }) => {
-  const [reportType, setReportType] = useState<'summary' | 'detailed'>('summary');
+  const [reportType, setReportType] = useState<'summary' | 'detailed' | 'berita_acara'>('summary');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isExportingJpg, setIsExportingJpg] = useState(false);
+  const [isExportingBeritaAcaraJpg, setIsExportingBeritaAcaraJpg] = useState(false);
   const printAreaRef = useRef<HTMLDivElement>(null);
+  const beritaAcaraRef = useRef<HTMLDivElement>(null);
 
   // Filter records within the modal's date range
   const currentRecords = records.filter(r => {
@@ -186,6 +189,33 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
       alert('Gagal mengunduh gambar. Silakan gunakan tombol Cetak / PDF Browser.');
     } finally {
       setIsExportingJpg(false);
+    }
+  };
+
+  const handleDownloadBeritaAcaraJpg = async () => {
+    if (!beritaAcaraRef.current) return;
+    setIsExportingBeritaAcaraJpg(true);
+
+    try {
+      const canvas = await renderDocumentToCanvas(beritaAcaraRef.current);
+      if (canvas.toBlob) {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `Berita_Acara_KBM_${filterState.startDate}_s.d._${filterState.endDate}.jpg`;
+            link.href = blobUrl;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1500);
+          }
+          setIsExportingBeritaAcaraJpg(false);
+        }, 'image/jpeg', 0.95);
+      }
+    } catch (err) {
+      console.error('Error generating Berita Acara JPG:', err);
+      setIsExportingBeritaAcaraJpg(false);
     }
   };
 
@@ -386,6 +416,17 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               >
                 Log Jurnal Rinci
               </button>
+              <button
+                type="button"
+                onClick={() => setReportType('berita_acara')}
+                className={`px-3 py-1 font-semibold rounded-md transition-all ${
+                  reportType === 'berita_acara'
+                    ? 'bg-sky-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Berita Acara KBM
+              </button>
             </div>
           </div>
 
@@ -409,25 +450,47 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
           {/* Action Buttons: Download JPG, Download PDF & Print */}
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleDownloadJpg}
-              disabled={isExportingJpg || isExportingPdf}
-              className="inline-flex items-center gap-1.5 px-3 py-2 font-bold text-white bg-amber-600 hover:bg-amber-700 active:bg-amber-800 disabled:opacity-50 rounded-lg shadow-sm transition-all text-xs"
-              title="Download dokumen langsung sebagai gambar (JPG) resolusi tinggi"
-            >
-              {isExportingJpg ? (
-                <>
-                  <RefreshCw size={14} className="animate-spin" />
-                  <span>Membuat JPG...</span>
-                </>
-              ) : (
-                <>
-                  <ImageIcon size={14} />
-                  <span>Unduh Gambar (JPG)</span>
-                </>
-              )}
-            </button>
+            {reportType === 'berita_acara' ? (
+              <button
+                type="button"
+                onClick={handleDownloadBeritaAcaraJpg}
+                disabled={isExportingBeritaAcaraJpg || isExportingPdf}
+                className="inline-flex items-center gap-1.5 px-3 py-2 font-bold text-white bg-amber-600 hover:bg-amber-700 active:bg-amber-800 disabled:opacity-50 rounded-lg shadow-sm transition-all text-xs"
+                title="Download Berita Acara sebagai gambar (JPG)"
+              >
+                {isExportingBeritaAcaraJpg ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>Membuat JPG...</span>
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon size={14} />
+                    <span>Unduh JPG Berita Acara</span>
+                  </>
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleDownloadJpg}
+                disabled={isExportingJpg || isExportingPdf}
+                className="inline-flex items-center gap-1.5 px-3 py-2 font-bold text-white bg-amber-600 hover:bg-amber-700 active:bg-amber-800 disabled:opacity-50 rounded-lg shadow-sm transition-all text-xs"
+                title="Download dokumen langsung sebagai gambar (JPG) resolusi tinggi"
+              >
+                {isExportingJpg ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>Membuat JPG...</span>
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon size={14} />
+                    <span>Unduh Gambar (JPG)</span>
+                  </>
+                )}
+              </button>
+            )}
 
             <button
               type="button"
@@ -615,7 +678,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                   </tbody>
                 </table>
               </div>
-            ) : (
+            ) : reportType === 'detailed' ? (
               // TABEL 2: LOG HARIAN / RINCI
               <div className="my-4 overflow-x-auto">
                 <table className="w-full text-left border-collapse border border-slate-800 text-[10px] sm:text-[11px]">
@@ -648,6 +711,64 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                     ))}
                   </tbody>
                 </table>
+              </div>
+            ) : (
+              // TABEL 3: BERITA ACARA KBM (Grouped by Kelas, 3 per row)
+              <div className="my-4">
+                <div className="text-center mb-4">
+                   <h2 className="text-lg font-bold">Berita Acara KBM MADAR</h2>
+                   <p className="text-sm">{periodeText}</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {Object.entries(currentRecords.reduce((acc, r) => {
+                    if (!acc[r.kelas]) acc[r.kelas] = [];
+                    acc[r.kelas].push(r);
+                    return acc;
+                  }, {} as Record<string, AttendanceRecord[]>)).sort((a,b) => a[0].localeCompare(b[0])).map(([kelas, records], _, array) => {
+                    // Logic to center the last row if it has fewer than 3 items
+                    const isLastRow = array.length % 3 !== 0 && array.length - array.indexOf([kelas, records] as any) <= (array.length % 3);
+                    const wrapperClass = isLastRow && array.length % 3 !== 0 ? 'md:col-start-2' : '';
+                    
+                    return (
+                      <div key={kelas} className={`border border-slate-800 break-inside-avoid ${wrapperClass}`}>
+                        <h3 className="font-bold bg-slate-100 p-1 border-b border-slate-800 text-center text-xs">Kelas {kelas}</h3>
+                        <table className="w-full text-left border-collapse text-[9px]">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-800">
+                              <th className="border-r border-slate-800 p-0.5 text-center">Jam</th>
+                              <th className="border-r border-slate-800 p-0.5">Mapel</th>
+                              <th className="border-r border-slate-800 p-0.5">Pengajar</th>
+                              <th className="p-0.5 text-center">Ket</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {records.sort((a,b) => Number(a.jam) - Number(b.jam)).map(r => {
+                              let rowColor = '';
+                              if (r.status === 'ALPA') rowColor = 'bg-rose-200';
+                              else if (r.status === 'IZIN' || r.status === 'SAKIT') rowColor = 'bg-yellow-200';
+                              else if (r.status === 'TUGAS_DINAS') rowColor = 'bg-sky-200';
+                              
+                              const statusShort = r.status === 'HADIR' ? '' : 
+                                r.status === 'IZIN' ? 'I' : 
+                                r.status === 'SAKIT' ? 'S' : 
+                                r.status === 'ALPA' ? 'A' : 
+                                r.status === 'TUGAS_DINAS' ? 'TD' : r.status;
+                              
+                              return (
+                                <tr key={r.id} className={`border-b border-slate-200 last:border-b-0 ${rowColor}`}>
+                                  <td className="border-r border-slate-800 p-0.5 text-center">{r.jam}</td>
+                                  <td className="border-r border-slate-800 p-0.5 truncate max-w-[60px]" title={r.mataPelajaran}>{r.mataPelajaran}</td>
+                                  <td className="border-r border-slate-800 p-0.5 truncate max-w-[80px]" title={r.namaGuru}>{r.namaGuru}</td>
+                                  <td className="p-0.5 text-center font-bold">{statusShort}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -684,6 +805,13 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
         </div>
 
+      </div>
+      
+      {/* Hidden Berita Acara JPG View */}
+      <div className="hidden">
+        <div ref={beritaAcaraRef}>
+          <BeritaAcaraJpgView records={currentRecords} periodeText={periodeText} />
+        </div>
       </div>
     </Modal>
   );
