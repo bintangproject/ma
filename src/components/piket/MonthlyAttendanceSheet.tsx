@@ -96,11 +96,11 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
       });
 
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const imgWidth = 210; // F4 width mm
+      const imgWidth = 210 - 35; // F4 width 210, left 30mm, right 5mm
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-      // Margins: left 20mm, top 5mm
-      pdf.addImage(imgData, 'JPEG', 20, 5, imgWidth - 25, imgHeight > 320 ? 320 : imgHeight);
+      // Margins: left 30mm, top 5mm
+      pdf.addImage(imgData, 'JPEG', 30, 5, imgWidth, imgHeight > 320 ? 320 : imgHeight);
       pdf.save(`Rekap_Presensi_${sheetTitle.replace(/\s+/g, '_')}_${targetDay}.pdf`);
     } catch (err) {
       console.error('Error generating PDF:', err);
@@ -187,7 +187,7 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
       </div>
 
       {/* Printable Sheets Container (F4 sizing simulation: Margin left 2cm (~20mm), top/bottom/right 0.5cm (~5mm)) */}
-      <div className="space-y-8 bg-white" style={{ paddingLeft: '20mm', paddingTop: '5mm', paddingRight: '5mm', paddingBottom: '5mm' }}>
+      <div className="space-y-8 bg-white" style={{ paddingLeft: '30mm', paddingTop: '5mm', paddingRight: '5mm', paddingBottom: '5mm' }}>
         {gradeSheets.map((sheet, sIdx) => (
           <div 
             key={sheet.code}
@@ -211,23 +211,22 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
             <table className="w-full border-collapse border border-slate-900 text-[10px]">
               <thead>
                 <tr className="bg-slate-100 text-center font-bold">
-                  <th className="border border-slate-900 px-1 py-1.5 w-12">KELAS</th>
-                  <th className="border border-slate-900 px-1 py-1.5 w-8">JAM</th>
-                  <th className="border border-slate-900 px-1 py-1.5 w-12">KODE GURU</th>
-                  <th className="border border-slate-900 px-2 py-1.5 text-left min-w-44">NAMA</th>
+                  <th rowSpan={2} className="border border-slate-900 px-1 py-1.5 w-10">KELAS</th>
+                  <th rowSpan={2} className="border border-slate-900 px-1 py-1.5 w-6">JAM</th>
+                  <th rowSpan={2} className="border border-slate-900 px-1 py-1.5 w-10">KODE</th>
+                  <th rowSpan={2} className="border border-slate-900 px-2 py-1.5 text-left w-32">NAMA</th>
                   {monthDates.map((dateObj, dIdx) => {
                     const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' });
                     return (
-                      <th key={dIdx} colSpan={2} className="border border-slate-900 px-1 py-1 text-center">
+                      <th key={dIdx} colSpan={2} className="border border-slate-900 px-1 py-1 text-center w-16">
                         {targetDay}, {dateStr}
                       </th>
                     );
                   })}
                 </tr>
                 <tr className="bg-slate-50 text-center font-bold text-[9px]">
-                  <th colSpan={4} className="border border-slate-900"></th>
                   {monthDates.map((_, dIdx) => (
-                    <th key={dIdx} colSpan={2} className="border border-slate-950 px-1 py-1 w-16">H/I/S/A | KGP</th>
+                    <th key={dIdx} colSpan={2} className="border border-slate-950 px-1 py-1">H/I/S/A | KGP</th>
                   ))}
                 </tr>
               </thead>

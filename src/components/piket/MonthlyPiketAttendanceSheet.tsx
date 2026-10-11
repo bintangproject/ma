@@ -53,15 +53,15 @@ export const MonthlyPiketAttendanceSheet: React.FC<MonthlyPiketAttendanceSheetPr
         windowWidth: 1024,
       });
       const pdf = new jsPDF({
-        orientation: 'landscape',
+        orientation: 'portrait',
         unit: 'mm',
-        format: 'A4',
+        format: [210, 330], // F4
       });
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const imgWidth = 297; // A4 landscape width mm
+      const imgWidth = 210 - 35; // 30 left, 5 right
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      // Margins: top 25mm, left/right/bottom 10mm
-      pdf.addImage(imgData, 'JPEG', 10, 25, imgWidth - 20, imgHeight > 185 ? 185 : imgHeight);
+      // Margins: top 25mm, left 30mm
+      pdf.addImage(imgData, 'JPEG', 30, 25, imgWidth, imgHeight > 300 ? 300 : imgHeight);
       pdf.save(`Rekap_Piket_${targetDay}.pdf`);
     } catch (err) {
       console.error('Error generating PDF:', err);
