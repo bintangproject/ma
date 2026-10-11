@@ -5,6 +5,7 @@ import { getIndonesianDayName, formatIndonesianDate, formatLocalISODate } from '
 import { DEFAULT_JADWAL_PIKET } from '../../data/defaultData';
 import { Shield, Save, Copy, Check, Share2, Calendar, FileSpreadsheet, Printer } from 'lucide-react';
 import { MonthlyAttendanceSheet } from './MonthlyAttendanceSheet';
+import { MonthlyPiketAttendanceSheet } from './MonthlyPiketAttendanceSheet';
 
 interface GuruPiketModalProps {
   isOpen: boolean;
@@ -27,7 +28,7 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
   onSavePiket,
   config,
 }) => {
-  const [activeTab, setActiveTab] = useState<'daily' | 'monthly'>('daily');
+  const [activeTab, setActiveTab] = useState<'daily' | 'monthly' | 'monthlyPiket'>('daily');
   const todayStr = formatLocalISODate();
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedHari, setSelectedHari] = useState(getIndonesianDayName(todayStr));
@@ -206,7 +207,19 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
             }`}
           >
             <Printer size={14} />
-            <span>Lembar Rekap Bulanan Guru (Print PDF)</span>
+            <span>Rekap Bulanan Guru</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('monthlyPiket')}
+            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${
+              activeTab === 'monthlyPiket'
+                ? 'border-sky-600 text-sky-700 bg-sky-50/50'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Printer size={14} />
+            <span>Rekap Bulanan Guru Piket</span>
           </button>
         </div>
 
@@ -324,9 +337,22 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
               </div>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'monthly' ? (
           <div className="space-y-4">
             <MonthlyAttendanceSheet config={config} teachers={teachers} schedules={schedules} />
+            <div className="flex justify-end pt-3 border-t border-slate-100 no-print">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <MonthlyPiketAttendanceSheet config={config} teachers={teachers} jadwalPiket={jadwalPiket} />
             <div className="flex justify-end pt-3 border-t border-slate-100 no-print">
               <button
                 type="button"

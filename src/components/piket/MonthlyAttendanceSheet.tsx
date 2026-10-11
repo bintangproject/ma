@@ -56,11 +56,14 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
     const upper = c.toUpperCase();
     return upper.startsWith('X') && !upper.startsWith('XI') && !upper.startsWith('XII');
   });
-  const gradeXIClasses = allClasses.filter(c => c.toUpperCase().startsWith('XI'));
+  const gradeXIClasses = allClasses.filter(c => {
+    const upper = c.toUpperCase();
+    return upper.startsWith('XI') && !upper.startsWith('XII');
+  });
   const gradeXIIClasses = allClasses.filter(c => c.toUpperCase().startsWith('XII'));
 
   const gradeSheets = [
-    { title: 'KELAS X', code: 'X', classes: gradeXClasses.length > 0 ? gradeXClasses : allClasses.filter(c => c.toUpperCase().includes('X') && !c.toUpperCase().includes('XI')) },
+    { title: 'KELAS X', code: 'X', classes: gradeXClasses },
     { title: 'KELAS XI', code: 'XI', classes: gradeXIClasses },
     { title: 'KELAS XII', code: 'XII', classes: gradeXIIClasses },
   ].filter(sheet => sheet.classes.length > 0);
@@ -224,10 +227,7 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
                 <tr className="bg-slate-50 text-center font-bold text-[9px]">
                   <th colSpan={4} className="border border-slate-900"></th>
                   {monthDates.map((_, dIdx) => (
-                    <React.Fragment key={dIdx}>
-                      <th className="border border-slate-950 px-1 py-1 w-10">H/TH</th>
-                      <th className="border border-slate-950 px-1 py-1 w-10">KGP</th>
-                    </React.Fragment>
+                    <th key={dIdx} colSpan={2} className="border border-slate-950 px-1 py-1 w-16">H/I/S/A | KGP</th>
                   ))}
                 </tr>
               </thead>
@@ -252,10 +252,10 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
                         <td className="border border-slate-900 px-1.5 py-1 text-center font-bold text-sky-800">{kodeGuru}</td>
                         <td className="border border-slate-900 px-2 py-1 truncate max-w-xs">{guruName}</td>
                         {monthDates.map((_, dIdx) => (
-                          <React.Fragment key={dIdx}>
-                            <td className="border border-slate-900 px-1 py-1 text-center"></td>
-                            <td className="border border-slate-900 px-1 py-1 text-center"></td>
-                          </React.Fragment>
+                            <React.Fragment key={dIdx}>
+                                <td className="border border-slate-900 px-1 py-1 text-center w-8"></td>
+                                <td className="border border-slate-900 px-1 py-1 text-center w-8"></td>
+                            </React.Fragment>
                         ))}
                       </tr>
                     );
@@ -263,18 +263,6 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
                 })}
               </tbody>
             </table>
-
-            {/* Footer Signature */}
-            <div className="mt-6 flex justify-between px-6 text-[11px]">
-              <div>
-                <p className="mb-12">Mengetahui,</p>
-                <p className="font-bold underline">Kepala Madrasah</p>
-              </div>
-              <div>
-                <p className="mb-12">Petugas Piket,</p>
-                <p className="font-bold underline">( ........................................ )</p>
-              </div>
-            </div>
           </div>
         ))}
       </div>
