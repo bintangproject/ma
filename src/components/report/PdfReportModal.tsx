@@ -11,7 +11,7 @@ import {
 } from '../../utils/formatters';
 import { Printer, Download, RefreshCw, FileText, Image as ImageIcon } from 'lucide-react';
 import { APP_CONFIG } from '../../config/appConfig';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
 
 interface PdfReportModalProps {

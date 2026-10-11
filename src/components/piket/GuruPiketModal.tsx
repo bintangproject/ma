@@ -4,6 +4,7 @@ import { GuruPiketRecord, MasterGuru, InstitutionConfig, PiketStatus } from '../
 import { getIndonesianDayName, formatIndonesianDate, formatLocalISODate } from '../../utils/formatters';
 import { DEFAULT_JADWAL_PIKET } from '../../data/defaultData';
 import { Shield, Save, Copy, Check, Share2, Calendar, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
+import { ManualAttendanceSheet } from './ManualAttendanceSheet';
 
 interface GuruPiketModalProps {
   isOpen: boolean;
@@ -170,167 +171,106 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Presensi Guru Piket Harian"
-      subtitle="Jadwal 4 guru piket harian disetting dari Spreadsheet, input kehadiran dilakukan di sini"
-      icon={<Shield size={20} className="text-sky-600" />}
-      maxWidth="2xl"
-    >
-      <div className="space-y-4">
-        
-        {/* Info Banner: Jadwal dari Spreadsheet */}
-        <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-sky-900">
-          <FileSpreadsheet size={18} className="text-sky-600 shrink-0 mt-0.5" />
-          <div className="leading-relaxed">
-            <span className="font-bold">Jadwal Guru Piket Otomatis dari Spreadsheet:</span>
-            <p className="text-slate-600 text-[11px] mt-0.5">
-              Daftar nama 4 petugas piket setiap hari diambil otomatis dari sheet <strong>Jadwal_Piket</strong> di Google Spreadsheet. Di sini Anda cukup menandai kehadiran (Hadir/Izin/Sakit/Alpa).
-            </p>
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Presensi Guru Piket Harian"
+        subtitle="Jadwal 4 guru piket harian disetting dari Spreadsheet, input kehadiran dilakukan di sini"
+        icon={<Shield size={20} className="text-sky-600" />}
+        maxWidth="2xl"
+      >
+        <div className="space-y-4">
+          <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-sky-900">
+            <FileSpreadsheet size={18} className="text-sky-600 shrink-0 mt-0.5" />
+            <div className="leading-relaxed">
+              <span className="font-bold">Jadwal Guru Piket Otomatis dari Spreadsheet:</span>
+              <p className="text-slate-600 text-[11px] mt-0.5">
+                Daftar nama 4 petugas piket setiap hari diambil otomatis dari sheet <strong>Jadwal_Piket</strong> di Google Spreadsheet. Di sini Anda cukup menandai kehadiran (Hadir/Izin/Sakit/Alpa).
+              </p>
+            </div>
           </div>
-        </div>
-
-        {/* Date Selector */}
-        <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Calendar size={16} className="text-sky-600" />
-            <span className="text-xs font-bold text-slate-700">Tanggal Piket:</span>
+          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Calendar size={16} className="text-sky-600" />
+              <span className="text-xs font-bold text-slate-700">Tanggal Piket:</span>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
+              />
+            </div>
+            <div className="text-xs font-bold text-sky-900 bg-sky-100 px-3 py-1 rounded-lg">
+              Hari {selectedHari}
+            </div>
+          </div>
+          <div className="space-y-2.5">
+            {[
+                { label: 'Petugas 1', val: piket1, setVal: setPiket1, status: status1, setStatus: setStatus1 },
+                { label: 'Petugas 2', val: piket2, setVal: setPiket2, status: status2, setStatus: setStatus2 },
+                { label: 'Petugas 3', val: piket3, setVal: setPiket3, status: status3, setStatus: setStatus3 },
+                { label: 'Petugas 4', val: piket4, setVal: setPiket4, status: status4, setStatus: setStatus4 },
+            ].map((p, i) => (
+                <div key={i} className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-sky-300 transition-colors">
+                    <div className="flex items-center gap-3">
+                        <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-xs font-black">{i + 1}</span>
+                        <div>
+                            <p className="text-xs font-bold text-slate-900">{p.val || 'Belum diatur di Sheet Jadwal_Piket'}</p>
+                            <p className="text-[10px] text-slate-400 font-medium">{p.label} ({selectedHari})</p>
+                        </div>
+                    </div>
+                    <div>{renderStatusSelector(p.status, p.setStatus)}</div>
+                </div>
+            ))}
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Catatan / Keterangan Piket (Opsional):</label>
             <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
+              type="text"
+              value={keterangan}
+              onChange={(e) => setKeterangan(e.target.value)}
+              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-sky-500 bg-white"
             />
           </div>
-
-          <div className="text-xs font-bold text-sky-900 bg-sky-100 px-3 py-1 rounded-lg">
-            Hari {selectedHari}
-          </div>
-        </div>
-
-        {/* 4 Petugas Piket Cards */}
-        <div className="space-y-2.5">
-          {/* Petugas 1 */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-sky-300 transition-colors">
-            <div className="flex items-center gap-3">
-              <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-xs font-black">1</span>
-              <div>
-                <p className="text-xs font-bold text-slate-900">{piket1 || 'Belum diatur di Sheet Jadwal_Piket'}</p>
-                <p className="text-[10px] text-slate-400 font-medium">Petugas Piket 1 ({selectedHari})</p>
-              </div>
-            </div>
-            <div>
-              {renderStatusSelector(status1, setStatus1)}
+          <div>
+            <p className="text-xs font-bold text-slate-700 mb-1">Pratinjau Pesan WA Guru Piket:</p>
+            <div className="bg-slate-900 text-emerald-400 p-3.5 rounded-xl text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto border border-slate-800">
+              {generatePiketWaText()}
             </div>
           </div>
-
-          {/* Petugas 2 */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-sky-300 transition-colors">
-            <div className="flex items-center gap-3">
-              <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-xs font-black">2</span>
-              <div>
-                <p className="text-xs font-bold text-slate-900">{piket2 || 'Belum diatur di Sheet Jadwal_Piket'}</p>
-                <p className="text-[10px] text-slate-400 font-medium">Petugas Piket 2 ({selectedHari})</p>
-              </div>
-            </div>
-            <div>
-              {renderStatusSelector(status2, setStatus2)}
-            </div>
-          </div>
-
-          {/* Petugas 3 */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-sky-300 transition-colors">
-            <div className="flex items-center gap-3">
-              <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-xs font-black">3</span>
-              <div>
-                <p className="text-xs font-bold text-slate-900">{piket3 || 'Belum diatur di Sheet Jadwal_Piket'}</p>
-                <p className="text-[10px] text-slate-400 font-medium">Petugas Piket 3 ({selectedHari})</p>
-              </div>
-            </div>
-            <div>
-              {renderStatusSelector(status3, setStatus3)}
-            </div>
-          </div>
-
-          {/* Petugas 4 */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-sky-300 transition-colors">
-            <div className="flex items-center gap-3">
-              <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-xs font-black">4</span>
-              <div>
-                <p className="text-xs font-bold text-slate-900">{piket4 || 'Belum diatur di Sheet Jadwal_Piket'}</p>
-                <p className="text-[10px] text-slate-400 font-medium">Petugas Piket 4 ({selectedHari})</p>
-              </div>
-            </div>
-            <div>
-              {renderStatusSelector(status4, setStatus4)}
-            </div>
-          </div>
-        </div>
-
-        {/* Keterangan Tugas */}
-        <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1">
-            Catatan / Keterangan Piket (Opsional):
-          </label>
-          <input
-            type="text"
-            value={keterangan}
-            onChange={(e) => setKeterangan(e.target.value)}
-            placeholder="Contoh: Kondisi KBM tertib, 1 guru izin tugas dinas digantikan piket..."
-            className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-sky-500 bg-white"
-          />
-        </div>
-
-        {/* WhatsApp Preview Box */}
-        <div>
-          <p className="text-xs font-bold text-slate-700 mb-1">Pratinjau Pesan WA Guru Piket:</p>
-          <div className="bg-slate-900 text-emerald-400 p-3.5 rounded-xl text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto border border-slate-800">
-            {generatePiketWaText()}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-3 border-t border-slate-100">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex justify-end mt-4">
             <button
-              type="button"
-              onClick={handleCopyWa}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg"
             >
-              {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-              <span>{copied ? 'Tersalin!' : 'Salin Teks WA'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleShareWa}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
-            >
-              <Share2 size={14} />
-              <span>Buka WA</span>
+                <FileSpreadsheet size={14} />
+                <span>Cetak Lembar Presensi Manual</span>
             </button>
           </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg"
-            >
-              Tutup
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-extrabold text-white bg-sky-600 hover:bg-sky-700 active:bg-sky-800 rounded-lg shadow-2xs"
-            >
-              <Save size={14} />
-              <span>Simpan Kehadiran Piket</span>
-            </button>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-3 border-t border-slate-100">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button type="button" onClick={handleCopyWa} className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                <span>{copied ? 'Tersalin!' : 'Salin Teks WA'}</span>
+              </button>
+              <button type="button" onClick={handleShareWa} className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+                <Share2 size={14} />
+                <span>Buka WA</span>
+              </button>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Tutup</button>
+              <button type="button" onClick={handleSave} className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-extrabold text-white bg-sky-600 hover:bg-sky-700 active:bg-sky-800 rounded-lg shadow-2xs">
+                <Save size={14} />
+                <span>Simpan Kehadiran Piket</span>
+              </button>
+            </div>
           </div>
         </div>
-
-      </div>
-    </Modal>
+      </Modal>
+      <ManualAttendanceSheet date={selectedDate} config={config} teachers={teachers} />
+    </>
   );
 };
