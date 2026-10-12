@@ -142,6 +142,7 @@ export const MonthlyPiketAttendanceSheet: React.FC<MonthlyPiketAttendanceSheetPr
             <tr className="bg-slate-100 text-center font-bold">
               <th className="border border-slate-900 px-1 py-1.5 w-12">NO</th>
               <th className="border border-slate-900 px-2 py-1.5 text-left min-w-44">NAMA GURU</th>
+              <th className="border border-slate-900 px-2 py-1.5 text-center min-w-24">MAPEL</th>
               {monthDates.map((dateObj, dIdx) => {
                 const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
                 return (
@@ -157,6 +158,7 @@ export const MonthlyPiketAttendanceSheet: React.FC<MonthlyPiketAttendanceSheetPr
               <tr key={idx}>
                 <td className="border border-slate-900 px-1.5 py-2 text-center font-bold">{idx + 1}</td>
                 <td className="border border-slate-900 px-2 py-2">{namaGuru}</td>
+                <td className="border border-slate-900 px-2 py-2 text-center">-</td>
                 {monthDates.map((_, dIdx) => (
                   <td key={dIdx} className="border border-slate-900 px-1 py-2 text-center"></td>
                 ))}

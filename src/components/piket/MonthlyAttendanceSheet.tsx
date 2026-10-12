@@ -215,6 +215,7 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
                   <th rowSpan={2} className="border border-slate-900 px-1 py-1.5 w-6">JAM</th>
                   <th rowSpan={2} className="border border-slate-900 px-1 py-1.5 w-10">KODE</th>
                   <th rowSpan={2} className="border border-slate-900 px-2 py-1.5 text-left w-32">NAMA</th>
+                  <th rowSpan={2} className="border border-slate-900 px-2 py-1.5 text-left w-32">MAPEL</th>
                   {monthDates.map((dateObj, dIdx) => {
                     const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' });
                     return (
@@ -239,6 +240,7 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
                     const item = classItems.find(s => Number(s.jam) === jam);
                     const guruName = item ? item.guruPengampu : '#N/A';
                     const kodeGuru = item ? getTeacherCode(guruName) : 'NA';
+                    const mapel = item ? item.mataPelajaran : '-';
 
                     return (
                       <tr key={`${kelas}-${jam}`} className="hover:bg-slate-50">
@@ -250,6 +252,7 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
                         <td className="border border-slate-900 px-1.5 py-1 text-center font-medium">{jam}</td>
                         <td className="border border-slate-900 px-1.5 py-1 text-center font-bold text-sky-800">{kodeGuru}</td>
                         <td className="border border-slate-900 px-2 py-1 truncate max-w-xs">{guruName}</td>
+                        <td className="border border-slate-900 px-2 py-1 truncate max-w-xs">{mapel}</td>
                         {monthDates.map((_, dIdx) => (
                             <React.Fragment key={dIdx}>
                                 <td className="border border-slate-900 px-1 py-1 text-center w-8"></td>
