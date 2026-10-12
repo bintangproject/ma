@@ -49,7 +49,16 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
   const daySchedules = schedules[targetDay] || [];
 
   // Get unique classes from schedules
-  const allClasses = Array.from(new Set(daySchedules.map(s => s.kelas))).sort();
+  const allClasses = Array.from(new Set(daySchedules.map(s => s.kelas))).sort((a, b) => {
+    // Custom sort: split by grade and section (e.g., 'X A' -> ['X', 'A'])
+    const partsA = a.split(' ');
+    const partsB = b.split(' ');
+    
+    // Compare grade first
+    if (partsA[0] !== partsB[0]) return partsA[0].localeCompare(partsB[0]);
+    // Then compare section
+    return partsA[1].localeCompare(partsB[1]);
+  });
 
   // Group classes into Grade X, Grade XI, Grade XII
   const gradeXClasses = allClasses.filter(c => {
