@@ -50,14 +50,15 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
 
   // Get unique classes from schedules
   const allClasses = Array.from(new Set(daySchedules.map(s => s.kelas))).sort((a, b) => {
-    // Custom sort: split by grade and section (e.g., 'X A' -> ['X', 'A'])
-    const partsA = a.split(' ');
-    const partsB = b.split(' ');
-    
-    // Compare grade first
-    if (partsA[0] !== partsB[0]) return partsA[0].localeCompare(partsB[0]);
-    // Then compare section
-    return partsA[1].localeCompare(partsB[1]);
+    const customOrder: Record<string, number> = {
+      // Kelas X
+      'X A': 1, 'X B': 2, 'X C': 3, 'X D': 4, 'X E': 5, 'X F': 6,
+      // Kelas XI
+      'XI-PA (IPS)': 7, 'XI-PI (IPS)': 8, 'XI-PA (IPA)': 9, 'XI-PI (IPA)': 10, 'XI (Bahasa)': 11,
+      // Kelas XII
+      'XII-PA (IPS)': 12, 'XII-PI (IPS)': 13, 'XII-PA (PK)': 14, 'XII-PI (PK)': 15, 'XII (IPA)': 16
+    };
+    return (customOrder[a] || 99) - (customOrder[b] || 99);
   });
 
   // Group classes into Grade X, Grade XI, Grade XII
