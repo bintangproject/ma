@@ -259,8 +259,5 @@ export function generateWhatsAppApelMessage(
     });
   }
 
-  text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-  text += `_Waka Kurikulum: ${config.NAMA_STAFF || 'Ust. Edi Amin, M.Hum.'}_`;
-
   return text;
 }
