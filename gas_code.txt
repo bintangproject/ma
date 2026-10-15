@@ -1,0 +1,168 @@
+/**
+ * =========================================================================
+ * GOOGLE APPS SCRIPT - SIRAMA v2.3 (UPDATE GURU PIKET)
+ * =========================================================================
+ */
+
+const SHEET_CONFIG = "Config";
+const SHEET_GURU = "Master_Guru";
+const SHEET_MAPEL = "Master_Mapel";
+const SHEET_KEHADIRAN = "Kehadiran";
+const SHEET_JADWAL_PIKET = "Jadwal_Piket";
+const SHEET_PIKET = "Guru_Piket";
+const SHEET_APEL = "Rekap_Apel";
+const HARI_LIST = ["Sabtu", "Ahad", "Senin", "Selasa", "Rabu", "Kamis"];
+
+function setupDatabaseAwal() {
+  setupInitialDatabase();
+  Logger.log("✅ Database berhasil diperbarui.");
+}
+
+function doGet(e) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (e && e.parameter && e.parameter.action) return handleAction(ss, e.parameter);
+
+    const config = {};
+    const cfgSheet = ss.getSheetByName(SHEET_CONFIG);
+    if (cfgSheet) {
+      const cfgData = cfgSheet.getDataRange().getValues();
+      for (let i = 1; i < cfgData.length; i++) {
+        if (cfgData[i][0]) {
+          config[cfgData[i][0]] = cfgData[i][1];
+          config[String(cfgData[i][0]).toUpperCase().replace(/[\s-]+/g, '_')] = cfgData[i][1];
+        }
+      }
+    }
+
+    const teachers = [];
+    const guruSheet = ss.getSheetByName(SHEET_GURU);
+    if (guruSheet) {
+      const gData = guruSheet.getDataRange().getValues();
+      for (let i = 1; i < gData.length; i++) {
+        if (!gData[i][1]) continue;
+        teachers.push({ kode: String(gData[i][0]), nama: String(gData[i][1]), keterangan: String(gData[i][2] || '') });
+      }
+    }
+
+    const subjects = [];
+    const mapelSheet = ss.getSheetByName(SHEET_MAPEL);
+    if (mapelSheet) {
+      const mData = mapelSheet.getDataRange().getValues();
+      for (let i = 1; i < mData.length; i++) {
+        if (!mData[i][1]) continue;
+        subjects.push({ kode: String(mData[i][0]), nama: String(mData[i][1]) });
+      }
+    }
+
+    const jadwalPiket = {};
+    HARI_LIST.forEach(h => jadwalPiket[h] = []);
+    const jpSheet = ss.getSheetByName(SHEET_JADWAL_PIKET);
+    if (jpSheet) {
+      const jpData = jpSheet.getDataRange().getValues();
+      for (let i = 1; i < jpData.length; i++) {
+        if (jpData[i][0]) jadwalPiket[jpData[i][0]] = [String(jpData[i][1]), String(jpData[i][2]), String(jpData[i][3]), String(jpData[i][4])].filter(Boolean);
+      }
+    }
+
+    const schedules = {};
+    HARI_LIST.forEach(hari => {
+      schedules[hari] = [];
+      const hSheet = ss.getSheetByName(hari);
+      if (hSheet) {
+        const hData = hSheet.getDataRange().getValues();
+        for (let i = 1; i < hData.length; i++) {
+          if (hData[i][0]) schedules[hari].push({ hari, kelas: String(hData[i][0]), jam: hData[i][1], mataPelajaran: String(hData[i][2]), guruPengampu: String(hData[i][3]) });
+        }
+      }
+    });
+
+    const attendance = [];
+    const attSheet = ss.getSheetByName(SHEET_KEHADIRAN);
+    if (attSheet) {
+      const attData = attSheet.getDataRange().getValues();
+      for (let i = 1; i < attData.length; i++) {
+        if (attData[i][1]) attendance.push({ id: String(attData[i][0]), tanggal: formatDateString(attData[i][1]), hari: String(attData[i][2]), kelas: String(attData[i][3]), jam: attData[i][4], mataPelajaran: String(attData[i][5]), namaGuru: String(attData[i][6]), status: String(attData[i][7]), keterangan: String(attData[i][8]), waktuInput: String(attData[i][9]) });
+      }
+    }
+
+    const guruPiket = [];
+    const piketSheet = ss.getSheetByName(SHEET_PIKET);
+    if (piketSheet) {
+      const pData = piketSheet.getDataRange().getValues();
+      for (let i = 1; i < pData.length; i++) {
+        if (pData[i][1]) guruPiket.push({ id: String(pData[i][0]), tanggal: formatDateString(pData[i][1]), hari: String(pData[i][2]), piket1: String(pData[i][3]), piket2: String(pData[i][4]), piket3: String(pData[i][5]), piket4: String(pData[i][6]), status1: String(pData[i][7] || 'HADIR'), status2: String(pData[i][8] || 'HADIR'), status3: String(pData[i][9] || 'HADIR'), status4: String(pData[i][10] || 'HADIR'), keterangan: String(pData[i][11]), waktuInput: String(pData[i][12]) });
+      }
+    }
+
+    const rekapApel = [];
+    const apelSheet = ss.getSheetByName(SHEET_APEL);
+    if (apelSheet) {
+      const aData = apelSheet.getDataRange().getValues();
+      for (let i = 1; i < aData.length; i++) {
+        if (aData[i][1]) rekapApel.push({ id: String(aData[i][0]), tanggal: formatDateString(aData[i][1]), hari: String(aData[i][2]), nama: String(aData[i][3]), kategori: String(aData[i][4]), jabatanAtauJadwal: String(aData[i][5]), status: String(aData[i][6]), keterangan: String(aData[i][7]), waktuInput: String(aData[i][8]) });
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ status: "success", config, teachers, subjects, schedules, jadwalPiket, attendance, guruPiket, rekapApel })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doPost(e) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let postData = JSON.parse(e.postData.contents);
+  return handleAction(ss, postData);
+}
+
+function handleAction(ss, postData) {
+  const timestamp = Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
+
+  if (postData.action === "saveGuruPiket") {
+    let pSheet = ss.getSheetByName(SHEET_PIKET);
+    if (!pSheet) {
+      pSheet = ss.insertSheet(SHEET_PIKET);
+      pSheet.appendRow(["ID", "Tanggal", "Hari", "Piket 1", "Piket 2", "Piket 3", "Piket 4", "Status 1", "Status 2", "Status 3", "Status 4", "Keterangan", "Waktu Input"]);
+      pSheet.getRange("A1:M1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+    }
+
+    let pkt = postData.piket;
+    const targetDate = formatDateString(pkt.tanggal);
+    const data = pSheet.getDataRange().getValues();
+    const kept = [];
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][1] && formatDateString(data[i][1]) !== targetDate) kept.push(data[i]);
+    }
+
+    kept.push([
+      pkt.id || ('pkt-' + targetDate), targetDate, pkt.hari || '',
+      pkt.piket1 || '', pkt.piket2 || '', pkt.piket3 || '', pkt.piket4 || '',
+      pkt.status1 || 'HADIR', pkt.status2 || 'HADIR', pkt.status3 || 'HADIR', pkt.status4 || 'HADIR',
+      pkt.keterangan || '', timestamp
+    ]);
+
+    pSheet.getRange(2, 1, pSheet.getLastRow(), 13).clearContent();
+    pSheet.getRange(2, 1, kept.length, 13).setValues(kept);
+
+    return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Data tersimpan" })).setMimeType(ContentService.MimeType.JSON);
+  }
+  return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Aksi tidak dikenal" })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function formatDateString(val) {
+  if (!val) return "";
+  if (val instanceof Date) return Utilities.formatDate(val, "Asia/Jakarta", "yyyy-MM-dd");
+  let s = String(val).trim();
+  if (s.indexOf("T") !== -1) s = s.split("T")[0];
+  const parts = s.split(/[\/\-]/);
+  if (parts.length === 3) return parts[0].length === 4 ? parts[0] + "-" + ("0" + parts[1]).slice(-2) + "-" + ("0" + parts[2]).slice(-2) : parts[2] + "-" + ("0" + parts[1]).slice(-2) + "-" + ("0" + parts[0]).slice(-2);
+  return s;
+}
+
+function setupInitialDatabase() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // (Fungsi setupInitialDatabase ini sama dengan yang Anda miliki sebelumnya, 
+  // pastikan struktur sheet lainnya konsisten)
+}

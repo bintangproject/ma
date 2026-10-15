@@ -214,8 +214,12 @@ export function generateWhatsAppApelMessage(
 
   // Helper to format row
   const formatRow = (r: ApelAttendanceRecord, idx: number) => {
-    // Mapping: Hadir -> ✅, Izin -> ℹ️, Sakit/Alpa -> ❌
-    const statusIcon = r.status === 'HADIR' ? '✅' : r.status === 'IZIN' ? 'ℹ️' : '❌';
+    // Mapping: Hadir -> ✅, Izin -> ℹ️, Sakit -> 🏥, Alpa -> ❌
+    let statusIcon = '❌';
+    if (r.status === 'HADIR') statusIcon = '✅';
+    else if (r.status === 'IZIN') statusIcon = 'ℹ️';
+    else if (r.status === 'SAKIT') statusIcon = '🏥';
+    
     return `${idx + 1}. ${r.nama} ${statusIcon}`;
   };
 
