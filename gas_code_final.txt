@@ -1,6 +1,6 @@
 /**
  * =========================================================================
- * GOOGLE APPS SCRIPT - SIRAMA v2.3 (UPDATE GURU PIKET)
+ * GOOGLE APPS SCRIPT - SIRAMA v2.4 (FINAL FIX STRUKTUR GURU PIKET)
  * =========================================================================
  */
 
@@ -91,7 +91,7 @@ function doGet(e) {
     if (piketSheet) {
       const pData = piketSheet.getDataRange().getValues();
       for (let i = 1; i < pData.length; i++) {
-        if (pData[i][1]) guruPiket.push({ id: String(pData[i][0]), tanggal: formatDateString(pData[i][1]), hari: String(pData[i][2]), piket1: String(pData[i][3]), piket2: String(pData[i][4]), piket3: String(pData[i][5]), piket4: String(pData[i][6]), status1: String(pData[i][7] || 'HADIR'), status2: String(pData[i][8] || 'HADIR'), status3: String(pData[i][9] || 'HADIR'), status4: String(pData[i][10] || 'HADIR'), keterangan: String(pData[i][11]), waktuInput: String(pData[i][12]) });
+        if (pData[i][1]) guruPiket.push({ id: String(pData[i][0]), tanggal: formatDateString(pData[i][1]), hari: String(pData[i][2]), nama: String(pData[i][3]), status: String(pData[i][4] || 'HADIR'), keterangan: String(pData[i][5]), waktuInput: String(pData[i][6]) });
       }
     }
 
@@ -121,10 +121,15 @@ function handleAction(ss, postData) {
 
   if (postData.action === "saveGuruPiket") {
     let pSheet = ss.getSheetByName(SHEET_PIKET);
+    const newHeaders = ["ID", "Tanggal", "Hari", "Nama Guru", "Status", "Keterangan", "Waktu Input"];
+    
     if (!pSheet) {
       pSheet = ss.insertSheet(SHEET_PIKET);
-      pSheet.appendRow(["ID", "Tanggal", "Hari", "Piket 1", "Piket 2", "Piket 3", "Piket 4", "Status 1", "Status 2", "Status 3", "Status 4", "Keterangan", "Waktu Input"]);
-      pSheet.getRange("A1:M1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+      pSheet.appendRow(newHeaders);
+      pSheet.getRange(1, 1, 1, newHeaders.length).setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+    } else {
+      pSheet.getRange(1, 1, 1, newHeaders.length).setValues([newHeaders]);
+      pSheet.getRange(1, 1, 1, newHeaders.length).setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
     }
 
     let pkt = postData.piket;
@@ -136,15 +141,24 @@ function handleAction(ss, postData) {
       if (data[i][1] && formatDateString(data[i][1]) !== targetDate) kept.push(data[i]);
     }
 
-    kept.push([
-      pkt.id || ('pkt-' + targetDate), targetDate, pkt.hari || '',
-      pkt.piket1 || '', pkt.piket2 || '', pkt.piket3 || '', pkt.piket4 || '',
-      pkt.status1 || 'HADIR', pkt.status2 || 'HADIR', pkt.status3 || 'HADIR', pkt.status4 || 'HADIR',
-      pkt.keterangan || '', timestamp
-    ]);
+    const petugasList = [
+      { nama: pkt.piket1, status: pkt.status1 },
+      { nama: pkt.piket2, status: pkt.status2 },
+      { nama: pkt.piket3, status: pkt.status3 },
+      { nama: pkt.piket4, status: pkt.status4 }
+    ];
 
-    pSheet.getRange(2, 1, pSheet.getLastRow(), 13).clearContent();
-    pSheet.getRange(2, 1, kept.length, 13).setValues(kept);
+    petugasList.forEach((p, idx) => {
+      if (p.nama && p.nama !== "undefined" && p.nama !== "") {
+        kept.push([
+          `pkt-${targetDate}-${idx + 1}`, targetDate, pkt.hari || '',
+          p.nama, p.status || 'HADIR', pkt.keterangan || '', timestamp
+        ]);
+      }
+    });
+
+    pSheet.getRange(2, 1, pSheet.getLastRow(), newHeaders.length).clearContent();
+    if (kept.length > 0) pSheet.getRange(2, 1, kept.length, newHeaders.length).setValues(kept);
 
     return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Data tersimpan" })).setMimeType(ContentService.MimeType.JSON);
   }
@@ -163,52 +177,10 @@ function formatDateString(val) {
 
 function setupInitialDatabase() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  // Sheet Config
-  let cfgSheet = ss.getSheetByName(SHEET_CONFIG);
-  if (!cfgSheet) {
-    cfgSheet = ss.insertSheet(SHEET_CONFIG);
-    cfgSheet.appendRow(["KEY", "VALUE"]);
-  }
-  
-  // Sheet Master Guru
-  let guruSheet = ss.getSheetByName(SHEET_GURU);
-  if (!guruSheet) {
-    guruSheet = ss.insertSheet(SHEET_GURU);
-    guruSheet.appendRow(["KODE GURU", "NAMA GURU", "KETERANGAN / JABATAN"]);
-  }
-
-  // Sheet Master Mapel
-  let mapelSheet = ss.getSheetByName(SHEET_MAPEL);
-  if (!mapelSheet) {
-    mapelSheet = ss.insertSheet(SHEET_MAPEL);
-    mapelSheet.appendRow(["KODE MAPEL", "MATA PELAJARAN"]);
-  }
-
-  // Sheet Jadwal Piket
-  let jpSheet = ss.getSheetByName(SHEET_JADWAL_PIKET);
-  if (!jpSheet) {
-    jpSheet = ss.insertSheet(SHEET_JADWAL_PIKET);
-    jpSheet.appendRow(["HARI", "PETUGAS 1", "PETUGAS 2", "PETUGAS 3", "PETUGAS 4"]);
-  }
-
-  // Sheet Kehadiran
-  let attSheet = ss.getSheetByName(SHEET_KEHADIRAN);
-  if (!attSheet) {
-    attSheet = ss.insertSheet(SHEET_KEHADIRAN);
-    attSheet.appendRow(["ID", "Tanggal", "Hari", "Kelas", "Jam", "Mata Pelajaran", "Guru Pengampu", "Status", "Keterangan", "Waktu Input"]);
-  }
-
-  // Sheet Guru Piket
+  // Sheet Guru Piket (STRUKTUR BARU)
   let piketSheet = ss.getSheetByName(SHEET_PIKET);
-  if (!piketSheet) {
-    piketSheet = ss.insertSheet(SHEET_PIKET);
-    piketSheet.appendRow(["ID", "Tanggal", "Hari", "Piket 1", "Piket 2", "Piket 3", "Piket 4", "Status 1", "Status 2", "Status 3", "Status 4", "Keterangan", "Waktu Input"]);
-  }
-
-  // Sheet Rekap Apel
-  let apelSheet = ss.getSheetByName(SHEET_APEL);
-  if (!apelSheet) {
-    apelSheet = ss.insertSheet(SHEET_APEL);
-    apelSheet.appendRow(["ID", "Tanggal", "Hari", "Nama", "Kategori", "Jabatan / Jadwal", "Status", "Keterangan", "Waktu Input"]);
-  }
+  if (!piketSheet) piketSheet = ss.insertSheet(SHEET_PIKET);
+  piketSheet.clear();
+  piketSheet.appendRow(["ID", "Tanggal", "Hari", "Nama Guru", "Status", "Keterangan", "Waktu Input"]);
+  piketSheet.getRange("A1:G1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
 }
