@@ -199,12 +199,6 @@ export function generateWhatsAppApelMessage(
   records: ApelAttendanceRecord[],
   config: InstitutionConfig
 ): string {
-  const total = records.length;
-  const hadirList = records.filter(r => r.status === 'HADIR');
-  const izinList = records.filter(r => r.status === 'IZIN');
-  const sakitList = records.filter(r => r.status === 'SAKIT');
-  const alpaList = records.filter(r => r.status === 'ALPA');
-
   const institutionName = (config.SINGKATAN || config.NAMA_LEMBAGA || 'MA DARUL LUGHAH WAL KAROMAH').toUpperCase();
 
   let text = `🎖️ *LAPORAN PRESENSI APEL PAGI PIMPINAN, KARYAWAN, DAN DEWAN GURU*\n`;
@@ -214,50 +208,26 @@ export function generateWhatsAppApelMessage(
   const apelTime = (hariStr || '').toLowerCase().includes('ahad') ? 'Pukul 08.20 - 08.30 WIB' : 'Pukul 09.20 - 09.30 WIB';
   text += `⏰ *Pelaksanaan:* ${apelTime}\n\n`;
 
-  text += `📊 *RINGKASAN KEHADIRAN APEL:*\n`;
-  text += `• Total Wajib Apel : *${total} orang*\n`;
-  text += `• Hadir            : *${hadirList.length} orang*\n`;
-  if (izinList.length > 0) text += `• Izin             : *${izinList.length} orang*\n`;
-  if (sakitList.length > 0) text += `• Sakit            : *${sakitList.length} orang*\n`;
-  if (alpaList.length > 0) text += `• Alpa / Tanpa Ket : *${alpaList.length} orang*\n`;
+  // Pimpinan dan Dewan Guru Categorization
+  const pimpinan = records.filter(r => r.kategori === 'STRUKTURAL').sort((a,b) => a.nama.localeCompare(b.nama));
+  const dewanGuru = records.filter(r => r.kategori !== 'STRUKTURAL').sort((a,b) => a.nama.localeCompare(b.nama));
 
-  // 1. DAFTAR HADIR
-  text += `\n✅ *DAFTAR HADIR APEL (${hadirList.length} Orang):*\n`;
-  if (hadirList.length === 0) {
-    text += `_Tidak ada_\n`;
-  } else {
-    hadirList.forEach((r, i) => {
-      const roleStr = r.jabatanAtauJadwal ? ` (${r.jabatanAtauJadwal})` : '';
-      text += `${i + 1}. *${r.nama}*${roleStr}\n`;
-    });
-  }
+  // Helper to format row
+  const formatRow = (r: ApelAttendanceRecord, idx: number) => {
+    // Mapping: Hadir -> ✅, Izin -> ℹ️, Sakit/Alpa -> ❌
+    const statusIcon = r.status === 'HADIR' ? '✅' : r.status === 'IZIN' ? 'ℹ️' : '❌';
+    return `${idx + 1}. ${r.nama} ${statusIcon}`;
+  };
 
-  // 2. DAFTAR IZIN
-  if (izinList.length > 0) {
-    text += `\n✉️ *DAFTAR IZIN (${izinList.length} Orang):*\n`;
-    izinList.forEach((r, i) => {
-      const roleStr = r.jabatanAtauJadwal ? ` (${r.jabatanAtauJadwal})` : '';
-      text += `${i + 1}. *${r.nama}*${roleStr}${r.keterangan ? ` — _${r.keterangan}_` : ''}\n`;
-    });
-  }
+  text += `👤 *Pimpinan dan Karyawan :*\n`;
+  pimpinan.forEach((r, i) => {
+    text += `${formatRow(r, i)}\n`;
+  });
 
-  // 3. DAFTAR SAKIT
-  if (sakitList.length > 0) {
-    text += `\n🏥 *DAFTAR SAKIT (${sakitList.length} Orang):*\n`;
-    sakitList.forEach((r, i) => {
-      const roleStr = r.jabatanAtauJadwal ? ` (${r.jabatanAtauJadwal})` : '';
-      text += `${i + 1}. *${r.nama}*${roleStr}${r.keterangan ? ` — _${r.keterangan}_` : ''}\n`;
-    });
-  }
-
-  // 4. DAFTAR ALPA
-  if (alpaList.length > 0) {
-    text += `\n❌ *DAFTAR ALPA / TANPA KETERANGAN (${alpaList.length} Orang):*\n`;
-    alpaList.forEach((r, i) => {
-      const roleStr = r.jabatanAtauJadwal ? ` (${r.jabatanAtauJadwal})` : '';
-      text += `${i + 1}. *${r.nama}*${roleStr}${r.keterangan ? ` — _${r.keterangan}_` : ''}\n`;
-    });
-  }
+  text += `\n👨‍🏫 *Dewan Guru :*\n`;
+  dewanGuru.forEach((r, i) => {
+    text += `${formatRow(r, i)}\n`;
+  });
 
   return text;
 }
