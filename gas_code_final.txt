@@ -119,6 +119,40 @@ function doPost(e) {
 function handleAction(ss, postData) {
   const timestamp = Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
 
+  // 0. Aksi Simpan Presensi KBM Harian
+  if (postData.action === "saveDayAttendance") {
+    let attSheet = ss.getSheetByName(SHEET_KEHADIRAN);
+    if (!attSheet) {
+      attSheet = ss.insertSheet(SHEET_KEHADIRAN);
+      attSheet.appendRow(["ID", "Tanggal", "Hari", "Kelas", "Jam", "Mata Pelajaran", "Guru Pengampu", "Status", "Keterangan", "Waktu Input"]);
+      attSheet.getRange(1, 1, 1, 10).setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+    }
+
+    const targetDate = formatDateString(postData.tanggal);
+    let records = postData.records || [];
+    if (typeof records === "string") { try { records = JSON.parse(records); } catch (e) { records = []; } }
+
+    const data = attSheet.getDataRange().getValues();
+    const kept = [];
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][1] && formatDateString(data[i][1]) !== targetDate) kept.push(data[i]);
+    }
+
+    records.forEach((r, k) => {
+      kept.push([
+        r.id || ('rec-' + targetDate + '-' + (k + 1)),
+        targetDate, r.hari || '', r.kelas || '', r.jam || '',
+        r.mataPelajaran || '', r.namaGuru || '', r.status || 'HADIR',
+        r.keterangan || '', timestamp
+      ]);
+    });
+
+    attSheet.getRange(2, 1, Math.max(attSheet.getLastRow() - 1, 1), 10).clearContent();
+    if (kept.length > 0) attSheet.getRange(2, 1, kept.length, 10).setValues(kept);
+
+    return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Data KBM tersimpan" })).setMimeType(ContentService.MimeType.JSON);
+  }
+
   // 1. Aksi Simpan Guru Piket
   if (postData.action === "saveGuruPiket") {
     let pSheet = ss.getSheetByName(SHEET_PIKET);
@@ -209,6 +243,18 @@ function formatDateString(val) {
 
 function setupInitialDatabase() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  // Sheet config dan sheet lainnya...
-  // (Pastikan fungsi ini ada dan lengkap untuk inisialisasi sheet)
+  const sheetsToSetup = [
+    { name: SHEET_KEHADIRAN, headers: ["ID", "Tanggal", "Hari", "Kelas", "Jam", "Mata Pelajaran", "Guru Pengampu", "Status", "Keterangan", "Waktu Input"] },
+    { name: SHEET_PIKET, headers: ["ID", "Tanggal", "Hari", "Nama Guru", "Status", "Keterangan", "Waktu Input"] },
+    { name: SHEET_APEL, headers: ["ID", "Tanggal", "Hari", "Nama", "Kategori", "Jabatan / Jadwal", "Status", "Keterangan", "Waktu Input"] }
+  ];
+
+  sheetsToSetup.forEach(s => {
+    let sheet = ss.getSheetByName(s.name);
+    if (!sheet) {
+      sheet = ss.insertSheet(s.name);
+      sheet.appendRow(s.headers);
+      sheet.getRange(1, 1, 1, s.headers.length).setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+    }
+  });
 }
