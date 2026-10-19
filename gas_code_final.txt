@@ -61,7 +61,10 @@ function doGet(e) {
     if (jpSheet) {
       const jpData = jpSheet.getDataRange().getValues();
       for (let i = 1; i < jpData.length; i++) {
-        if (jpData[i][0]) jadwalPiket[jpData[i][0]] = [String(jpData[i][1]), String(jpData[i][2]), String(jpData[i][3]), String(jpData[i][4])].filter(Boolean);
+        if (jpData[i][0]) {
+          // Ambil mulai dari indeks 1 (Petugas 1) sampai akhir baris dan filter yang ada isinya
+          jadwalPiket[jpData[i][0]] = jpData[i].slice(1).filter(Boolean).map(String);
+        }
       }
     }
 
@@ -173,19 +176,19 @@ function handleAction(ss, postData) {
       if (data[i][1] && formatDateString(data[i][1]) !== targetDate) kept.push(data[i]);
     }
 
-    const petugasList = [
-      { nama: pkt.piket1, status: pkt.status1 },
-      { nama: pkt.piket2, status: pkt.status2 },
-      { nama: pkt.piket3, status: pkt.status3 },
-      { nama: pkt.piket4, status: pkt.status4 }
-    ];
-
-    petugasList.forEach((p, idx) => {
-      if (p.nama && p.nama !== "undefined" && p.nama !== "") {
-        kept.push([
-          `pkt-${targetDate}-${idx + 1}`, targetDate, pkt.hari || '',
-          p.nama, p.status || 'HADIR', pkt.keterangan || '', timestamp
-        ]);
+    // Ambil semua kunci yang diawali dengan "piket"
+    Object.keys(pkt).forEach(key => {
+      if (key.startsWith("piket") && key.length > 5 && !isNaN(key.substring(5))) {
+        const idx = key.substring(5);
+        const nama = pkt[`piket${idx}`];
+        const status = pkt[`status${idx}`];
+        
+        if (nama && nama !== "undefined" && nama !== "") {
+          kept.push([
+            `pkt-${targetDate}-${idx}`, targetDate, pkt.hari || '',
+            nama, status || 'HADIR', pkt.keterangan || '', timestamp
+          ]);
+        }
       }
     });
 
