@@ -33,18 +33,8 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedHari, setSelectedHari] = useState(getIndonesianDayName(todayStr));
 
-  // 4 Guru Piket harian yang disetting di Spreadsheet
-  const [piket1, setPiket1] = useState('');
-  const [status1, setStatus1] = useState<PiketStatus>('HADIR');
-  
-  const [piket2, setPiket2] = useState('');
-  const [status2, setStatus2] = useState<PiketStatus>('HADIR');
-
-  const [piket3, setPiket3] = useState('');
-  const [status3, setStatus3] = useState<PiketStatus>('HADIR');
-
-  const [piket4, setPiket4] = useState('');
-  const [status4, setStatus4] = useState<PiketStatus>('HADIR');
+  // Petugas Piket harian yang disetting di Spreadsheet
+  const [petugasList, setPetugasList] = useState<{nama: string, status: PiketStatus}[]>([]);
 
   const [keterangan, setKeterangan] = useState('');
   const [copied, setCopied] = useState(false);
@@ -56,50 +46,51 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
     setSelectedHari(day);
 
     const existing = piketHistory.find(p => p.tanggal === selectedDate);
+    const scheduled = jadwalPiket[day] || DEFAULT_JADWAL_PIKET[day] || [];
+    
     if (existing) {
-      setPiket1(existing.piket1 || '');
-      setStatus1(existing.status1 || 'HADIR');
-      setPiket2(existing.piket2 || '');
-      setStatus2(existing.status2 || 'HADIR');
-      setPiket3(existing.piket3 || '');
-      setStatus3(existing.status3 || 'HADIR');
-      setPiket4(existing.piket4 || '');
-      setStatus4(existing.status4 || 'HADIR');
+      // Mengonstruksi daftar petugas dari history
+      const newList = [];
+      let i = 1;
+      while (existing[`piket${i}`]) {
+        newList.push({ 
+          nama: existing[`piket${i}`], 
+          status: existing[`status${i}`] as PiketStatus || 'HADIR' 
+        });
+        i++;
+      }
+      setPetugasList(newList);
       setKeterangan(existing.keterangan || '');
     } else {
-      // Ambil jadwal 4 guru piket dari Sheet Jadwal_Piket
-      const scheduled = jadwalPiket[day] || DEFAULT_JADWAL_PIKET[day] || [];
-      setPiket1(scheduled[0] || teachers[0]?.nama || 'Petugas 1');
-      setStatus1('HADIR');
-      setPiket2(scheduled[1] || teachers[1]?.nama || 'Petugas 2');
-      setStatus2('HADIR');
-      setPiket3(scheduled[2] || teachers[2]?.nama || 'Petugas 3');
-      setStatus3('HADIR');
-      setPiket4(scheduled[3] || teachers[3]?.nama || 'Petugas 4');
-      setStatus4('HADIR');
+      const initialized = scheduled.map((s) => ({
+        nama: s,
+        status: 'HADIR' as PiketStatus,
+      }));
+      setPetugasList(initialized);
       setKeterangan('');
     }
   }, [selectedDate, isOpen, piketHistory, jadwalPiket, teachers]);
 
   const handleSave = () => {
-    const record: GuruPiketRecord = {
+    const record: any = {
       id: `pkt-${selectedDate}`,
       tanggal: selectedDate,
       hari: selectedHari,
-      piket1,
-      status1,
-      piket2,
-      status2,
-      piket3,
-      status3,
-      piket4,
-      status4,
       keterangan: keterangan.trim(),
       waktuInput: `${selectedDate} ${new Date().toLocaleTimeString('id-ID')}`,
     };
+    
+    petugasList.forEach((p, idx) => {
+      record[`piket${idx + 1}`] = p.nama;
+      record[`status${idx + 1}`] = p.status;
+    });
 
     onSavePiket(record);
     alert(`Data Kehadiran Guru Piket hari ${selectedHari}, ${formatIndonesianDate(selectedDate, false)} berhasil disimpan!`);
+  };
+
+  const handleStatusChange = (idx: number, status: PiketStatus) => {
+    setPetugasList(prev => prev.map((p, i) => i === idx ? { ...p, status } : p));
   };
 
   const generatePiketWaText = () => {
@@ -109,15 +100,9 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
     text += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     text += `📅 *Hari/Tanggal:* ${selectedHari}, ${formatIndonesianDate(selectedDate, false)}\n\n`;
     
-    text += `📋 *Daftar Petugas Piket Hari Ini (4 Petugas):*\n`;
-    const items = [
-      { nama: piket1, status: status1 },
-      { nama: piket2, status: status2 },
-      { nama: piket3, status: status3 },
-      { nama: piket4, status: status4 },
-    ].filter(i => i.nama);
+    text += `📋 *Daftar Petugas Piket Hari Ini (${petugasList.length} Petugas):*\n`;
 
-    items.forEach((item, idx) => {
+    petugasList.forEach((item, idx) => {
       const statusIcon = item.status === 'HADIR' ? '✅' : item.status === 'IZIN' ? '✉️' : item.status === 'SAKIT' ? '🏥' : '❌';
       text += `${idx + 1}. ${statusIcon} *${item.nama}* [${item.status}]\n`;
     });
@@ -254,23 +239,18 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
               </div>
             </div>
 
-            {/* 4 Petugas Piket Cards */}
+            {/* Petugas Piket Cards */}
             <div className="space-y-2.5">
-              {[
-                { label: 'Petugas 1', val: piket1, setVal: setPiket1, status: status1, setStatus: setStatus1 },
-                { label: 'Petugas 2', val: piket2, setVal: setPiket2, status: status2, setStatus: setStatus2 },
-                { label: 'Petugas 3', val: piket3, setVal: setPiket3, status: status3, setStatus: setStatus3 },
-                { label: 'Petugas 4', val: piket4, setVal: setPiket4, status: status4, setStatus: setStatus4 },
-              ].map((p, i) => (
+              {petugasList.map((p, i) => (
                 <div key={i} className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-sky-300 transition-colors">
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-xs font-black">{i + 1}</span>
                     <div>
-                      <p className="text-xs font-bold text-slate-900">{p.val || 'Belum diatur di Sheet Jadwal_Piket'}</p>
-                      <p className="text-[10px] text-slate-400 font-medium">{p.label} ({selectedHari})</p>
+                      <p className="text-xs font-bold text-slate-900">{p.nama || 'Petugas ' + (i+1)}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">Petugas {i + 1} ({selectedHari})</p>
                     </div>
                   </div>
-                  <div>{renderStatusSelector(p.status, p.setStatus)}</div>
+                  <div>{renderStatusSelector(p.status, (s) => handleStatusChange(i, s))}</div>
                 </div>
               ))}
             </div>
