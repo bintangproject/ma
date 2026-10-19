@@ -135,4 +135,5 @@ export interface TeacherSummary {
   alpa: number;
   tugasDinas: number;
   persentaseKehadiran: number;
+  kelas: string;
 }

@@ -143,6 +143,7 @@ export function calculateTeacherSummaries(records: AttendanceRecord[]): TeacherS
         alpa: 0,
         tugasDinas: 0,
         persentaseKehadiran: 0,
+        kelas: '-',
       });
     }
 
@@ -170,6 +171,65 @@ export function calculateTeacherSummaries(records: AttendanceRecord[]): TeacherS
   });
 
   return list;
+}
+
+export function calculateTeacherSummariesByClass(records: AttendanceRecord[]): Record<string, TeacherSummary[]> {
+  const mapByClass = new Map<string, Map<string, TeacherSummary>>();
+
+  records.forEach((r) => {
+    const kelas = r.kelas || 'Tanpa Kelas';
+    const guru = r.namaGuru || 'Tanpa Nama';
+    const key = `${kelas}-${guru}`;
+
+    if (!mapByClass.has(kelas)) {
+      mapByClass.set(kelas, new Map<string, TeacherSummary>());
+    }
+    const map = mapByClass.get(kelas)!;
+
+    if (!map.has(key)) {
+      map.set(key, {
+        nama: guru,
+        kodeGuru: r.kodeGuru || '',
+        mataPelajaran: r.mataPelajaran || '-',
+        totalSesi: 0,
+        hadir: 0,
+        sakit: 0,
+        izin: 0,
+        alpa: 0,
+        tugasDinas: 0,
+        persentaseKehadiran: 0,
+        kelas: kelas,
+      });
+    }
+
+    const item = map.get(key)!;
+    item.totalSesi += 1;
+    if (r.status === 'HADIR') item.hadir += 1;
+    else if (r.status === 'SAKIT') item.sakit += 1;
+    else if (r.status === 'IZIN') item.izin += 1;
+    else if (r.status === 'ALPA') item.alpa += 1;
+    else if (r.status === 'TUGAS_DINAS') item.tugasDinas += 1;
+  });
+
+  const result: Record<string, TeacherSummary[]> = {};
+  
+  mapByClass.forEach((map, kelas) => {
+    const list = Array.from(map.values());
+    list.forEach((item) => {
+      const effective = item.hadir + item.tugasDinas;
+      item.persentaseKehadiran = item.totalSesi > 0 ? Math.round((effective / item.totalSesi) * 100) : 0;
+    });
+    // Sort
+    list.sort((a, b) => {
+      if (b.persentaseKehadiran !== a.persentaseKehadiran) {
+        return b.persentaseKehadiran - a.persentaseKehadiran;
+      }
+      return a.nama.localeCompare(b.nama);
+    });
+    result[kelas] = list;
+  });
+
+  return result;
 }
 
 /**

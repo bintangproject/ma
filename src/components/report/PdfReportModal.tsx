@@ -7,6 +7,7 @@ import {
   formatIndonesianShortDate, 
   calculateSummary, 
   calculateTeacherSummaries,
+  calculateTeacherSummariesByClass,
   STATUS_CONFIG 
 } from '../../utils/formatters';
 import { Printer, Download, RefreshCw, FileText, Image as ImageIcon } from 'lucide-react';
@@ -309,45 +310,40 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           ${styleTags}
           <style>
             @page {
-              size: A4 portrait;
-              margin: 10mm 10mm 10mm 30mm;
+              size: A4 landscape;
+              margin: 10mm;
             }
             * {
               box-sizing: border-box;
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
-              color-adjust: exact !important;
             }
             body {
-              margin: 10mm 10mm 10mm 30mm;
+              margin: 0;
               padding: 0;
-              font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-              color: #0f172a !important;
-              background: #ffffff !important;
-              font-size: 11px;
-              line-height: 1.35;
+              font-family: sans-serif;
+              color: #000 !important;
+              background: #fff !important;
+              font-size: 9pt;
+            }
+            .print-page-break {
+              page-break-after: always;
             }
             table {
               width: 100%;
               border-collapse: collapse;
-              margin: 8px 0;
+              margin: 5px 0;
+              table-layout: auto;
             }
             th, td {
-              border: 1px solid #1e293b !important;
-              padding: 4px 6px;
+              border: 1px solid #000 !important;
+              padding: 3px;
+              text-align: center;
+              font-size: 9pt;
             }
             th {
-              background-color: #f1f5f9 !important;
+              background-color: #eee !important;
               font-weight: bold;
-              text-align: center;
-            }
-            tr {
-              break-inside: avoid !important;
-              page-break-inside: avoid !important;
-            }
-            .break-inside-avoid {
-              break-inside: avoid !important;
-              page-break-inside: avoid !important;
             }
           </style>
         </head>
@@ -530,7 +526,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           <div 
             id="official-print-document" 
             ref={printAreaRef}
-            className="bg-white p-6 sm:p-10 rounded-sm shadow-md mx-auto max-w-4xl text-slate-900 text-xs font-sans print:p-0 print:shadow-none print:max-w-none print:ml-[30mm]"
+            className="bg-white p-4 rounded-sm mx-auto text-slate-900 text-[10px] font-sans print:p-0 print:shadow-none print:w-[277mm]"
           >
             {/* KOP SURAT RESMI MADRASAH (Logo Kiri: Madrasah, Logo Kanan: SIRAMA Web App) */}
             <div className="border-b-[3px] border-double border-slate-900 pb-3 mb-5">
@@ -625,59 +621,65 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
             {/* TABEL SESUAI PILIHAN MODEL */}
             {reportType === 'summary' ? (
-              // TABEL 1: REKAP PER PENGAJAR (Bulanan)
-              <div className="my-4 overflow-x-auto">
-                <table className="w-full text-left border-collapse border border-slate-800 text-[10px] sm:text-[11px]">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b border-slate-800">
-                      <th className="border border-slate-800 py-1.5 px-2 w-8">No</th>
-                      <th className="border border-slate-800 py-1.5 px-2 text-left">Nama Guru</th>
-                      <th className="border border-slate-800 py-1.5 px-1.5 w-12">Total Sesi</th>
-                      <th className="border border-slate-800 py-1.5 px-1 w-8">H</th>
-                      <th className="border border-slate-800 py-1.5 px-1 w-8">I</th>
-                      <th className="border border-slate-800 py-1.5 px-1 w-8">S</th>
-                      <th className="border border-slate-800 py-1.5 px-1 w-8">A</th>
-                      <th className="border border-slate-800 py-1.5 px-1 w-8">TD</th>
-                      <th className="border border-slate-800 py-1.5 px-2 w-14">% Hadir</th>
-                      <th className="border border-slate-800 py-1.5 px-2 w-24">Keterangan</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {teacherSummaries.map((ts, idx) => {
-                      const sangatBaik = config.PERSEN_SANGAT_BAIK ?? 90;
-                      const baik = config.PERSEN_BAIK ?? 80;
-                      const predikat = ts.alpa > 0 
-                        ? (config.LABEL_KURANG || 'Perlu Pembinaan') 
-                        : ts.persentaseKehadiran >= sangatBaik 
-                        ? (config.LABEL_SANGAT_BAIK || 'Sangat Baik') 
-                        : ts.persentaseKehadiran >= baik 
-                        ? (config.LABEL_BAIK || 'Baik') 
-                        : (config.LABEL_CUKUP || 'Cukup');
+              // TABEL 1: REKAP PER PENGAJAR (Bulanan) - Dikelompokkan Per Kelas
+              Object.entries(calculateTeacherSummariesByClass(currentRecords)).sort((a,b) => a[0].localeCompare(b[0])).map(([kelas, teacherSummariesForClass], idx, arr) => (
+                <div key={kelas} className={`my-4 overflow-x-auto ${idx !== arr.length - 1 ? 'print:break-after-page print-page-break' : ''}`}>
+                  <div className="text-center mb-4">
+                    <h3 className="text-sm font-bold uppercase underline">DAFTAR HADIR GURU - KELAS {kelas}</h3>
+                    <p className="text-xs font-semibold">Periode: {periodeText}</p>
+                  </div>
+                  <table className="w-full text-left border-collapse border border-slate-800 text-[10px] sm:text-[11px]">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b border-slate-800">
+                        <th className="border border-slate-800 py-1.5 px-2 w-8">No</th>
+                        <th className="border border-slate-800 py-1.5 px-2 text-left">Nama Guru</th>
+                        <th className="border border-slate-800 py-1.5 px-1.5 w-12">Total Sesi</th>
+                        <th className="border border-slate-800 py-1.5 px-1 w-8">H</th>
+                        <th className="border border-slate-800 py-1.5 px-1 w-8">I</th>
+                        <th className="border border-slate-800 py-1.5 px-1 w-8">S</th>
+                        <th className="border border-slate-800 py-1.5 px-1 w-8">A</th>
+                        <th className="border border-slate-800 py-1.5 px-1 w-8">TD</th>
+                        <th className="border border-slate-800 py-1.5 px-2 w-14">% Hadir</th>
+                        <th className="border border-slate-800 py-1.5 px-2 w-24">Keterangan</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teacherSummariesForClass.map((ts, idx) => {
+                        const sangatBaik = config.PERSEN_SANGAT_BAIK ?? 90;
+                        const baik = config.PERSEN_BAIK ?? 80;
+                        const predikat = ts.alpa > 0 
+                          ? (config.LABEL_KURANG || 'Perlu Pembinaan') 
+                          : ts.persentaseKehadiran >= sangatBaik 
+                          ? (config.LABEL_SANGAT_BAIK || 'Sangat Baik') 
+                          : ts.persentaseKehadiran >= baik 
+                          ? (config.LABEL_BAIK || 'Baik') 
+                          : (config.LABEL_CUKUP || 'Cukup');
 
-                      return (
-                        <tr key={ts.nama} className="border-b border-slate-300">
-                          <td className="border border-slate-800 py-1 px-1.5 text-center font-medium">{idx + 1}</td>
-                          <td className="border border-slate-800 py-1 px-2 font-semibold">
-                            {ts.nama}
-                          </td>
-                          <td className="border border-slate-800 py-1 px-1.5 text-center font-bold">{ts.totalSesi}</td>
-                          <td className="border border-slate-800 py-1 px-1 text-center font-semibold">{ts.hadir}</td>
-                          <td className="border border-slate-800 py-1 px-1 text-center">{ts.izin || '-'}</td>
-                          <td className="border border-slate-800 py-1 px-1 text-center">{ts.sakit || '-'}</td>
-                          <td className="border border-slate-800 py-1 px-1 text-center font-bold text-rose-700">{ts.alpa || '-'}</td>
-                          <td className="border border-slate-800 py-1 px-1 text-center">{ts.tugasDinas || '-'}</td>
-                          <td className="border border-slate-800 py-1 px-1.5 text-center font-bold">
-                            {ts.persentaseKehadiran}%
-                          </td>
-                          <td className="border border-slate-800 py-1 px-2 text-center text-[10px] font-medium">
-                            {predikat}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        return (
+                          <tr key={`${kelas}-${ts.nama}`} className="border-b border-slate-300">
+                            <td className="border border-slate-800 py-1 px-1.5 text-center font-medium">{idx + 1}</td>
+                            <td className="border border-slate-800 py-1 px-2 font-semibold">
+                              {ts.nama}
+                            </td>
+                            <td className="border border-slate-800 py-1 px-1.5 text-center font-bold">{ts.totalSesi}</td>
+                            <td className="border border-slate-800 py-1 px-1 text-center font-semibold">{ts.hadir}</td>
+                            <td className="border border-slate-800 py-1 px-1 text-center">{ts.izin || '-'}</td>
+                            <td className="border border-slate-800 py-1 px-1 text-center">{ts.sakit || '-'}</td>
+                            <td className="border border-slate-800 py-1 px-1 text-center font-bold text-rose-700">{ts.alpa || '-'}</td>
+                            <td className="border border-slate-800 py-1 px-1 text-center">{ts.tugasDinas || '-'}</td>
+                            <td className="border border-slate-800 py-1 px-1.5 text-center font-bold">
+                              {ts.persentaseKehadiran}%
+                            </td>
+                            <td className="border border-slate-800 py-1 px-2 text-center text-[10px] font-medium">
+                              {predikat}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ))
             ) : reportType === 'detailed' ? (
               // TABEL 2: LOG HARIAN / RINCI
               <div className="my-4 overflow-x-auto">
