@@ -310,7 +310,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           <style>
             @page {
               size: A4 portrait;
-              margin: 10mm 12mm 12mm 12mm;
+              margin: 10mm 10mm 10mm 30mm;
             }
             * {
               box-sizing: border-box;
@@ -319,7 +319,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               color-adjust: exact !important;
             }
             body {
-              margin: 10mm 12mm 12mm 12mm;
+              margin: 10mm 10mm 10mm 30mm;
               padding: 0;
               font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
               color: #0f172a !important;
@@ -352,7 +352,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           </style>
         </head>
         <body>
-          <div style="width: 100%; max-width: 820px; margin: 0 auto; background: #ffffff;">
+          <div style="width: 100%; margin: 0 auto; background: #ffffff;">
             ${content}
           </div>
         </body>
@@ -530,7 +530,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           <div 
             id="official-print-document" 
             ref={printAreaRef}
-            className="bg-white p-6 sm:p-10 rounded-sm shadow-md mx-auto max-w-4xl text-slate-900 text-xs font-sans print:p-0 print:shadow-none print:max-w-none"
+            className="bg-white p-6 sm:p-10 rounded-sm shadow-md mx-auto max-w-4xl text-slate-900 text-xs font-sans print:p-0 print:shadow-none print:max-w-none print:ml-[30mm]"
           >
             {/* KOP SURAT RESMI MADRASAH (Logo Kiri: Madrasah, Logo Kanan: SIRAMA Web App) */}
             <div className="border-b-[3px] border-double border-slate-900 pb-3 mb-5">
@@ -681,32 +681,38 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
             ) : reportType === 'detailed' ? (
               // TABEL 2: LOG HARIAN / RINCI
               <div className="my-4 overflow-x-auto">
-                <table className="w-full text-left border-collapse border border-slate-800 text-[10px] sm:text-[11px]">
+                {/* Header Judul Khusus untuk Tabel ini */}
+                <div className="text-center mb-4">
+                  <h3 className="text-sm font-bold uppercase underline">DAFTAR HADIR GURU - {filterState.selectedKelas || 'SEMUA KELAS'}</h3>
+                  <p className="text-xs font-semibold">Periode: {periodeText}</p>
+                </div>
+
+                <table className="w-full text-left border-collapse border border-slate-800 text-xs sm:text-sm">
                   <thead>
                     <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b border-slate-800">
-                      <th className="border border-slate-800 py-1.5 px-1.5 w-8">No</th>
-                      <th className="border border-slate-800 py-1.5 px-2 w-20">Tanggal</th>
-                      <th className="border border-slate-800 py-1.5 px-2 text-left">Nama Guru</th>
-                      <th className="border border-slate-800 py-1.5 px-2 text-left">Mata Pelajaran</th>
-                      <th className="border border-slate-800 py-1.5 px-2 w-20">Kelas</th>
-                      <th className="border border-slate-800 py-1.5 px-2 w-14">Jam</th>
-                      <th className="border border-slate-800 py-1.5 px-2 w-16">Status</th>
-                      <th className="border border-slate-800 py-1.5 px-2">Keterangan</th>
+                      <th className="border border-slate-800 py-3 px-2 w-10">No</th>
+                      <th className="border border-slate-800 py-3 px-3 w-28">Tanggal</th>
+                      <th className="border border-slate-800 py-3 px-4 text-left">Nama Guru</th>
+                      <th className="border border-slate-800 py-3 px-4 text-left">Mapel</th>
+                      <th className="border border-slate-800 py-3 px-3 w-20">Kelas</th>
+                      <th className="border border-slate-800 py-3 px-3 w-16">Jam</th>
+                      <th className="border border-slate-800 py-3 px-3 w-24">Status</th>
+                      <th className="border border-slate-800 py-3 px-4">Keterangan</th>
                     </tr>
                   </thead>
                   <tbody>
                     {currentRecords.map((r, idx) => (
                       <tr key={r.id} className="border-b border-slate-300">
-                        <td className="border border-slate-800 py-1 px-1 text-center">{idx + 1}</td>
-                        <td className="border border-slate-800 py-1 px-2 text-center whitespace-nowrap">{formatIndonesianShortDate(r.tanggal)}</td>
-                        <td className="border border-slate-800 py-1 px-2 font-semibold">{r.namaGuru}</td>
-                        <td className="border border-slate-800 py-1 px-2">{r.mataPelajaran}</td>
-                        <td className="border border-slate-800 py-1 px-2 text-center">{r.kelas}</td>
-                        <td className="border border-slate-800 py-1 px-2 text-center font-bold">Jam {r.jam}</td>
-                        <td className="border border-slate-800 py-1 px-2 text-center font-bold">
+                        <td className="border border-slate-800 py-3 px-2 text-center">{idx + 1}</td>
+                        <td className="border border-slate-800 py-3 px-3 text-center whitespace-nowrap">{formatIndonesianShortDate(r.tanggal)}</td>
+                        <td className="border border-slate-800 py-3 px-4 font-semibold">{r.namaGuru}</td>
+                        <td className="border border-slate-800 py-3 px-4">{r.mataPelajaran}</td>
+                        <td className="border border-slate-800 py-3 px-3 text-center font-bold bg-sky-50">{r.kelas}</td>
+                        <td className="border border-slate-800 py-3 px-3 text-center font-bold">Jam {r.jam}</td>
+                        <td className="border border-slate-800 py-3 px-3 text-center font-bold">
                           {STATUS_CONFIG[r.status]?.label || r.status}
                         </td>
-                        <td className="border border-slate-800 py-1 px-2 text-slate-600">{r.keterangan || '-'}</td>
+                        <td className="border border-slate-800 py-3 px-4 text-slate-600">{r.keterangan || '-'}</td>
                       </tr>
                     ))}
                   </tbody>

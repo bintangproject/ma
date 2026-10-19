@@ -128,25 +128,25 @@ export const MonthlyPiketAttendanceSheet: React.FC<MonthlyPiketAttendanceSheetPr
 
       <div 
         ref={containerRef}
-        className="print-page bg-white text-slate-900 p-8"
+        className="print-page bg-white text-slate-900 p-0"
         style={{ minHeight: '320mm' }}
       >
-        <div className="text-center pb-3 mb-6 border-b-2 border-slate-900">
+        <div className="text-center pb-1 mb-1 border-b-2 border-slate-900">
           <h1 className="text-sm font-extrabold tracking-wide">DAFTAR HADIR GURU PIKET — HARI {targetDay.toUpperCase()}</h1>
           <h2 className="text-base font-black uppercase tracking-wider">{institutionName}</h2>
-          <p className="text-[11px] font-semibold mt-0.5">TAHUN PELAJARAN {selectedYear}-{selectedYear + 1}</p>
+          <p className="text-[11px] font-semibold mt-0">TAHUN PELAJARAN {selectedYear}-{selectedYear + 1}</p>
         </div>
 
-        <table className="w-full border-collapse border border-slate-900 text-[10px]">
+        {/* Tabel Tanda Tangan */}
+        <table className="w-full border-collapse border border-slate-900 text-xs mb-4">
           <thead>
             <tr className="bg-slate-100 text-center font-bold">
-              <th className="border border-slate-900 px-1 py-1.5 w-12">NO</th>
-              <th className="border border-slate-900 px-2 py-1.5 text-left min-w-44">NAMA GURU</th>
-              <th className="border border-slate-900 px-2 py-1.5 text-center min-w-24">MAPEL</th>
+              <th className="border border-slate-900 px-1 py-3 w-10">NO</th>
+              <th className="border border-slate-900 px-2 py-3 text-center w-64">NAMA GURU</th>
               {monthDates.map((dateObj, dIdx) => {
                 const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
                 return (
-                  <th key={dIdx} className="border border-slate-900 px-1 py-1 text-center w-8">
+                  <th key={dIdx} className="border border-slate-900 px-1 py-1 text-center w-12 text-[10px]">
                     {dateStr}
                   </th>
                 );
@@ -155,10 +155,9 @@ export const MonthlyPiketAttendanceSheet: React.FC<MonthlyPiketAttendanceSheetPr
           </thead>
           <tbody>
             {piketTeachers.map((namaGuru, idx) => (
-              <tr key={idx}>
-                <td className="border border-slate-900 px-1.5 py-2 text-center font-bold">{idx + 1}</td>
-                <td className="border border-slate-900 px-2 py-2">{namaGuru}</td>
-                <td className="border border-slate-900 px-2 py-2 text-center">-</td>
+              <tr key={idx} className="h-16">
+                <td className="border border-slate-900 px-1 py-2 text-center font-bold">{idx + 1}</td>
+                <td className="border border-slate-900 px-2 py-2 font-semibold text-sm">{namaGuru}</td>
                 {monthDates.map((_, dIdx) => (
                   <td key={dIdx} className="border border-slate-900 px-1 py-2 text-center"></td>
                 ))}
@@ -166,6 +165,30 @@ export const MonthlyPiketAttendanceSheet: React.FC<MonthlyPiketAttendanceSheetPr
             ))}
           </tbody>
         </table>
+        <p className="text-[10px] italic text-slate-700 mb-6 font-medium">* Kolom diisi dengan tanda tangan guru piket pada hari yang bersangkutan.</p>
+
+        {/* Tabel Catatan */}
+        <div>
+            <h3 className="text-xs font-bold mb-1">CATATAN GURU PIKET:</h3>
+            <table className="w-full border-collapse border border-slate-900 text-xs">
+                <thead>
+                    <tr className="bg-slate-100 text-center font-bold">
+                        <th className="border border-slate-900 px-2 py-2 w-24">TANGGAL</th>
+                        <th className="border border-slate-900 px-2 py-2 text-center">CATATAN</th>
+                        <th className="border border-slate-900 px-2 py-2 w-48">GURU PIKET</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {[...Array(12)].map((_, i) => (
+                        <tr key={i} className="h-24">
+                            <td className="border border-slate-900 px-2 py-2"></td>
+                            <td className="border border-slate-900 px-2 py-2"></td>
+                            <td className="border border-slate-900 px-2 py-2"></td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
       </div>
     </div>
   );
