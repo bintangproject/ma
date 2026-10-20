@@ -81,7 +81,7 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
   // Helper to get teacher code by name
   const getTeacherCode = (guruName: string) => {
     const t = teachers.find(tch => tch.nama.toLowerCase() === guruName.toLowerCase() || tch.nama.includes(guruName));
-    return t ? t.kode : 'NA';
+    return t ? t.kode : '-';
   };
 
   const handleDownloadSinglePdf = async (sheetTitle: string, code: string) => {
@@ -102,30 +102,126 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: [210, 330], // F4
+        format: [210, 330], // Standar Kertas F4 (Folio)
       });
 
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
       
-      // Hitung dimensi agar proporsional
+      // Pengaturan Margin Sesuai Permintaan:
+      // Margin kiri: 3 cm (30 mm)
+      // Margin lain (atas, kanan, bawah): 0.5 cm (5 mm)
       const pdfWidth = 210;
-      const margin = 15;
-      const imgWidth = pdfWidth - (margin * 2);
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pdfHeight = 330;
+      const marginLeft = 30; // 3 cm
+      const marginRight = 5; // 0.5 cm
+      const marginTop = 5;   // 0.5 cm
+      const marginBottom = 5;// 0.5 cm
 
-      // Tambahkan ke PDF
-      pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);
+      const targetWidth = pdfWidth - marginLeft - marginRight; // 175 mm
+      const maxTargetHeight = pdfHeight - marginTop - marginBottom; // 320 mm
+
+      let imgWidth = targetWidth;
+      let imgHeight = (canvas.height * targetWidth) / canvas.width;
+
+      // Jaminan 100% Tidak Terpotong:
+      // Jika tinggi melebihi 320 mm, sesuaikan skala secara proporsional agar muat pas dalam 1 lembar F4
+      if (imgHeight > maxTargetHeight) {
+        const ratio = maxTargetHeight / imgHeight;
+        imgHeight = maxTargetHeight;
+        imgWidth = targetWidth * ratio;
+      }
+
+      pdf.addImage(imgData, 'JPEG', marginLeft, marginTop, imgWidth, imgHeight);
       pdf.save(`Rekap_Presensi_${sheetTitle.replace(/\s+/g, '_')}_${targetDay}.pdf`);
     } catch (err) {
       console.error('Error generating PDF:', err);
-      window.print();
+      handlePrint();
     } finally {
       setExportingGrade(null);
     }
   };
 
+  // Cetak Semua menggunakan iframe terisolasi agar modal tidak tersembunyi
   const handlePrint = () => {
-    window.print();
+    const printContainer = document.getElementById('monthly-sheets-print-area');
+    if (!printContainer) {
+      window.print();
+      return;
+    }
+
+    const printIframe = document.createElement('iframe');
+    printIframe.style.position = 'fixed';
+    printIframe.style.right = '0';
+    printIframe.style.bottom = '0';
+    printIframe.style.width = '0';
+    printIframe.style.height = '0';
+    printIframe.style.border = '0';
+    document.body.appendChild(printIframe);
+
+    const doc = printIframe.contentWindow?.document;
+    if (!doc) {
+      window.print();
+      return;
+    }
+
+    const styleTags = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(node => node.outerHTML)
+      .join('\n');
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Daftar_Hadir_Guru_${targetDay}</title>
+          <meta charset="utf-8" />
+          ${styleTags}
+          <style>
+            @page {
+              size: 210mm 330mm;
+              margin: 5mm 5mm 5mm 30mm;
+            }
+            * {
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              background: #fff !important;
+              color: #000 !important;
+              font-family: sans-serif;
+            }
+            .print-page {
+              page-break-after: always !important;
+              break-after: page !important;
+            }
+          </style>
+        </head>
+        <body>
+          <div style="width: 175mm; margin: 0;">
+            ${printContainer.innerHTML}
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      try {
+        printIframe.contentWindow?.focus();
+        printIframe.contentWindow?.print();
+      } catch {
+        window.print();
+      } finally {
+        setTimeout(() => {
+          if (document.body.contains(printIframe)) {
+            document.body.removeChild(printIframe);
+          }
+        }, 2000);
+      }
+    }, 500);
   };
 
   const months = [
@@ -200,80 +296,123 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({ 
         </div>
       </div>
 
-      {/* Printable Sheets Container (F4 sizing simulation: Margin left 2cm (~20mm), top/bottom/right 0.5cm (~5mm)) */}
-      <div className="space-y-8 bg-white" style={{ paddingLeft: '30mm', paddingTop: '5mm', paddingRight: '5mm', paddingBottom: '5mm' }}>
-        {gradeSheets.map((sheet, sIdx) => (
-          <div 
-            key={sheet.code}
-            ref={(el) => { sheetRefs.current[sheet.code] = el; }}
-            className="print-page bg-white text-slate-900" 
-            style={{ 
-              minHeight: '320mm', 
-              pageBreakAfter: 'always', 
-              breakAfter: 'page',
-              marginBottom: sIdx < gradeSheets.length - 1 ? '20mm' : '0'
-            }}
-          >
-            {/* Header */}
-            <div className="text-center pb-3 mb-4 border-b-2 border-slate-900">
-              <h1 className="text-lg font-extrabold tracking-wide uppercase">DAFTAR HADIR GURU - {sheet.title} - HARI {targetDay.toUpperCase()}</h1>
-              <h2 className="text-base font-black uppercase tracking-wider">{institutionName}</h2>
-              <p className="text-xs font-semibold mt-0.5">TAHUN PELAJARAN {selectedYear}-{selectedYear + 1}</p>
-            </div>
+      {/* Printable Sheets Container with F4 margins preview: Left 30mm (3cm), Others 5mm (0.5cm) */}
+      <div 
+        id="monthly-sheets-print-area" 
+        className="space-y-8 bg-slate-100 p-2 sm:p-4 rounded-xl overflow-x-auto"
+      >
+        {gradeSheets.map((sheet, sIdx) => {
+          const numClasses = sheet.classes.length;
+          // Row height proporsional agar mengisi penuh 1 lembar F4 tanpa sisa ruang kosong besar:
+          // 6 rombel (Kelas X = 48 baris) -> 24px per baris (~303mm total)
+          // <=5 rombel (Kelas XI & XII = 40 baris) -> 28.5px per baris (~300mm total)
+          const rowHeight = numClasses >= 6 ? '24px' : '28.5px';
+          const fontSizeMain = numClasses >= 6 ? 'text-[10px]' : 'text-[11px]';
+          const fontSizeCode = numClasses >= 6 ? 'text-[8.5px]' : 'text-[9px]';
 
-            {/* Table */}
-            <table className="w-full border-collapse border border-slate-900 table-fixed">
-              <thead>
-                <tr className="bg-slate-100 text-center font-bold text-[9px]">
-                  <th className="border border-slate-900 px-0.5 py-1 w-[8%]">KELAS</th>
-                  <th className="border border-slate-900 px-0.5 py-1 w-[4%]">JAM</th>
-                  <th className="border border-slate-900 px-0.5 py-1 w-[6%]">KODE</th>
-                  <th className="border border-slate-900 px-1 py-1 w-[25%]">NAMA</th>
-                  <th className="border border-slate-900 px-1 py-1 w-[20%]">MAPEL</th>
-                  {monthDates.map((dateObj, dIdx) => {
-                    const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'numeric' });
-                    return (
-                      <th key={dIdx} className="border border-slate-900 px-0.5 py-1 text-center text-[8px]">
-                        {dateStr}
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {sheet.classes.map(kelas => {
-                  const classItems = daySchedules.filter(s => s.kelas === kelas).sort((a, b) => Number(a.jam) - Number(b.jam));
-                  const periods = [1, 2, 3, 4, 5, 6, 7, 8];
+          return (
+            <div 
+              key={sheet.code}
+              ref={(el) => { sheetRefs.current[sheet.code] = el; }}
+              className="print-page bg-white text-slate-900 shadow-md mx-auto" 
+              style={{ 
+                width: '100%',
+                maxWidth: '750px',
+                padding: '4mm',
+                pageBreakAfter: 'always', 
+                breakAfter: 'page',
+                marginBottom: sIdx < gradeSheets.length - 1 ? '16px' : '0'
+              }}
+            >
+              {/* Header Surat / Lembar Presensi */}
+              <div className="text-center pb-2 mb-2.5 border-b-2 border-slate-900">
+                <h1 className="text-base font-extrabold tracking-wide uppercase text-slate-900 leading-tight">
+                  DAFTAR HADIR GURU — {sheet.title} — HARI {targetDay.toUpperCase()}
+                </h1>
+                <h2 className="text-xs font-black uppercase tracking-wider text-slate-800 leading-tight mt-0.5">
+                  {institutionName}
+                </h2>
+                <p className="text-[11px] font-semibold text-slate-700 mt-0.5 leading-tight">
+                  TAHUN PELAJARAN {selectedYear}-{selectedYear + 1}
+                </p>
+              </div>
 
-                  return periods.map((jam, pIdx) => {
-                    const item = classItems.find(s => Number(s.jam) === jam);
-                    const guruName = item ? item.guruPengampu : '-';
-                    const kodeGuru = item ? getTeacherCode(guruName) : '-';
-                    const mapel = item ? item.mataPelajaran : '-';
+              {/* Tabel Presensi KBM Bulanan */}
+              <table className="w-full border-collapse border border-slate-900 table-fixed">
+                <thead>
+                  <tr className="bg-slate-100 text-center font-bold text-[9px]">
+                    <th className="border border-slate-900 px-0.5 py-1.5 w-[9%] text-center">KELAS</th>
+                    <th className="border border-slate-900 px-0.5 py-1.5 w-[4%] text-center">JAM</th>
+                    <th className="border border-slate-900 px-0.5 py-1.5 w-[5%] font-normal text-slate-700 text-center">KODE</th>
+                    <th className="border border-slate-900 px-1.5 py-1.5 w-[33%] text-center">NAMA</th>
+                    <th className="border border-slate-900 px-1.5 py-1.5 w-[24%] text-center">MAPEL</th>
+                    {monthDates.map((dateObj, dIdx) => {
+                      const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+                      const d = dateObj.getDate();
+                      const m = shortMonths[dateObj.getMonth()];
+                      const dateStr = `${d < 10 ? '0' + d : d} ${m}`;
+                      return (
+                        <th key={dIdx} className="border border-slate-900 px-0.5 py-1 text-center font-bold text-[8.5px] whitespace-nowrap">
+                          {dateStr}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sheet.classes.map(kelas => {
+                    const classItems = daySchedules.filter(s => s.kelas === kelas).sort((a, b) => Number(a.jam) - Number(b.jam));
+                    const periods = [1, 2, 3, 4, 5, 6, 7, 8];
 
-                    return (
-                      <tr key={`${kelas}-${jam}`} className="hover:bg-slate-50 h-7">
-                        {pIdx === 0 && (
-                          <td rowSpan={periods.length} className="border border-slate-900 px-1 py-1 font-bold text-center align-middle bg-slate-50 text-[9px]">
-                            {kelas}
+                    return periods.map((jam, pIdx) => {
+                      const item = classItems.find(s => Number(s.jam) === jam);
+                      const guruName = item ? item.guruPengampu : '-';
+                      const kodeGuru = item ? getTeacherCode(guruName) : '-';
+                      const mapel = item ? item.mataPelajaran : '-';
+
+                      return (
+                        <tr 
+                          key={`${kelas}-${jam}`} 
+                          className="hover:bg-slate-50"
+                          style={{ height: rowHeight }}
+                        >
+                          {pIdx === 0 && (
+                            <td 
+                              rowSpan={periods.length} 
+                              className="border border-slate-900 px-1 py-1 font-bold text-center align-middle bg-slate-50 text-[9.5px] leading-tight"
+                            >
+                              {kelas}
+                            </td>
+                          )}
+                          <td className="border border-slate-900 px-0.5 py-0.5 text-center font-bold text-[9.5px] leading-none">
+                            {jam}
                           </td>
-                        )}
-                        <td className="border border-slate-900 px-1 py-0.5 text-center font-bold text-[9px]">{jam}</td>
-                        <td className="border border-slate-900 px-1 py-0.5 text-center font-normal text-[9px]">{kodeGuru}</td>
-                        <td className="border border-slate-900 px-1.5 py-0.5 font-semibold text-[9px] truncate">{guruName}</td>
-                        <td className="border border-slate-900 px-1.5 py-0.5 text-[9px] truncate">{mapel}</td>
-                        {monthDates.map((_, dIdx) => (
-                            <td key={dIdx} className="border border-slate-900 px-1 py-0.5 text-center"></td>
-                        ))}
-                      </tr>
-                    );
-                  });
-                })}
-              </tbody>
-            </table>
-            <p className="text-[9px] italic text-slate-700 mt-1 font-medium">* Centang bila hadir, jika tidak hadir diisi keterangan (izin, sakit, alpha, atau nama pengganti).</p>
-          </div>
-        ))}
+                          <td className={`border border-slate-900 px-0.5 py-0.5 text-center font-normal ${fontSizeCode} text-slate-700 leading-none`}>
+                            {kodeGuru}
+                          </td>
+                          <td className={`border border-slate-900 px-1.5 py-0.5 font-semibold ${fontSizeMain} text-slate-900 truncate leading-tight`}>
+                            {guruName}
+                          </td>
+                          <td className={`border border-slate-900 px-1.5 py-0.5 ${fontSizeMain} text-slate-800 truncate leading-tight`}>
+                            {mapel}
+                          </td>
+                          {monthDates.map((_, dIdx) => (
+                            <td key={dIdx} className="border border-slate-900 px-0.5 py-0.5 text-center"></td>
+                          ))}
+                        </tr>
+                      );
+                    });
+                  })}
+                </tbody>
+              </table>
+
+              {/* Catatan Kaki Cara Mengisi */}
+              <p className="text-[9.5px] italic text-slate-700 mt-2 font-medium leading-normal">
+                * Centang bila hadir, jika tidak hadir diisi keterangan (izin, sakit, alpha, atau nama pengganti).
+              </p>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

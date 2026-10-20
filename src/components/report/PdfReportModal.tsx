@@ -310,13 +310,8 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           ${styleTags}
           <style>
             @page {
-              size: A4 landscape;
+              size: 210mm 330mm;
               margin: 10mm;
-            }
-            * {
-              box-sizing: border-box;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
             }
             body {
               margin: 0;
@@ -324,7 +319,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               font-family: sans-serif;
               color: #000 !important;
               background: #fff !important;
-              font-size: 9pt;
+              font-size: 11px;
             }
             .print-page-break {
               page-break-after: always;
@@ -332,18 +327,19 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
             table {
               width: 100%;
               border-collapse: collapse;
-              margin: 5px 0;
-              table-layout: auto;
+              margin: 10px 0;
+              table-layout: fixed;
             }
             th, td {
               border: 1px solid #000 !important;
-              padding: 3px;
-              text-align: center;
-              font-size: 9pt;
+              padding: 5px;
+              word-wrap: break-word;
             }
-            th {
-              background-color: #eee !important;
-              font-weight: bold;
+            thead {
+              display: table-header-group;
+            }
+            tr {
+              page-break-inside: avoid;
             }
           </style>
         </head>
@@ -526,7 +522,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           <div 
             id="official-print-document" 
             ref={printAreaRef}
-            className="bg-white p-4 rounded-sm mx-auto text-slate-900 text-[10px] font-sans print:p-0 print:shadow-none print:w-[277mm]"
+            className="bg-white p-6 sm:p-10 rounded-sm shadow-md mx-auto max-w-4xl text-slate-900 text-xs font-sans print:p-0 print:shadow-none print:max-w-none"
           >
             {/* KOP SURAT RESMI MADRASAH (Logo Kiri: Madrasah, Logo Kanan: SIRAMA Web App) */}
             <div className="border-b-[3px] border-double border-slate-900 pb-3 mb-5">
