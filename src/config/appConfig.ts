@@ -1,6 +1,6 @@
 export const APP_CONFIG = {
   // Database Google Apps Script Web App (Aktif & Realtime di semua perangkat)
-  SPREADSHEET_GAS_URL: 'https://script.google.com/macros/s/AKfycbwYbRFsQRTRuXBaIMg2vNff4egcUvYsJwMV0qTj8odte9JNxvI4rBpaWeC6VIsi8L1JGA/exec',
+  SPREADSHEET_GAS_URL: 'https://script.google.com/macros/s/AKfycbwpbyv5WPNd14QmDvMNiWLosW53zZlEYitqp5L759pZcVJB9a9OLZdMsJxTbL58NDFb/exec',
 
   // Logo Madrasah Aliyah Darul Lughah Wal Karomah
   DEFAULT_LOGO_URL: 'https://cdn.jsdelivr.net/gh/contohdfi/tesfoto@main/logo%20madar.png',
