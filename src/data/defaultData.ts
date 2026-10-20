@@ -1,4 +1,4 @@
-import { MasterGuru, MasterMapel, ScheduleItem, DayScheduleMap, InstitutionConfig, AttendanceRecord } from '../types/attendance';
+import { MasterGuru, MasterMapel, ScheduleItem, DayScheduleMap, InstitutionConfig, AttendanceRecord, AppUser } from '../types/attendance';
 import { APP_CONFIG } from '../config/appConfig';
 import { formatLocalISODate } from '../utils/formatters';
 
@@ -314,3 +314,62 @@ export function getInitialAttendanceRecords(): AttendanceRecord[] {
 
   return records;
 }
+
+export const DEFAULT_APP_USERS: AppUser[] = [
+  {
+    username: 'evan',
+    password: '123',
+    nama: 'Ust. Evan, S.Pd.',
+    role: 'Waka Kurikulum',
+    keterangan: 'Admin Kurikulum Madrasah',
+  },
+  {
+    username: 'kepala',
+    password: '123',
+    nama: 'Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd.',
+    role: 'Kepala Madrasah',
+    keterangan: 'Kepala Madrasah Aliyah',
+  },
+  {
+    username: 'kurikulum',
+    password: '123',
+    nama: 'Ust. Edi Amin, M.Hum.',
+    role: 'Waka Kurikulum',
+    keterangan: 'Waka Kurikulum',
+  },
+  {
+    username: 'kesiswaan',
+    password: '123',
+    nama: 'Ust. Muh. Fathan Zamani, M.A.',
+    role: 'Waka Kesiswaan',
+    keterangan: 'Waka Kesiswaan',
+  },
+  {
+    username: 'humas',
+    password: '123',
+    nama: 'Ust. H. Djamauddin, M.Pd.I.',
+    role: 'Waka Humas',
+    keterangan: 'Waka Humas',
+  },
+  {
+    username: 'sarpras',
+    password: '123',
+    nama: 'Ust. Dwi Evayanto, S.Kom',
+    role: 'Waka Sarpras',
+    keterangan: 'Waka Sarpras',
+  },
+  {
+    username: 'piket',
+    password: '123',
+    nama: 'Guru Piket Harian',
+    role: 'Guru Piket',
+    keterangan: 'Petugas Piket Harian',
+  },
+  {
+    username: 'admin',
+    password: '123',
+    nama: 'Administrator SIRAMA',
+    role: 'Administrator',
+    keterangan: 'Pengelola Sistem',
+  },
+];

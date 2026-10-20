@@ -1,4 +1,4 @@
-import { AttendanceRecord, MasterGuru, MasterMapel, DayScheduleMap, InstitutionConfig, GuruPiketRecord, ApelAttendanceRecord } from '../types/attendance';
+import { AttendanceRecord, MasterGuru, MasterMapel, DayScheduleMap, InstitutionConfig, GuruPiketRecord, ApelAttendanceRecord, AppUser } from '../types/attendance';
 
 export interface GasSyncResponse {
   success: boolean;
@@ -12,6 +12,7 @@ export interface GasSyncResponse {
     guruPiket?: GuruPiketRecord[];
     jadwalPiket?: Record<string, string[]>;
     rekapApel?: ApelAttendanceRecord[];
+    users?: AppUser[];
   };
 }
 
@@ -99,6 +100,7 @@ export async function fetchFromGoogleSheets(gasUrl: string): Promise<GasSyncResp
           guruPiket: json.guruPiket || [],
           jadwalPiket: json.jadwalPiket || {},
           rekapApel: json.rekapApel || [],
+          users: json.users || [],
         },
       };
     } else {
@@ -432,6 +434,7 @@ const SHEET_KEHADIRAN = "Kehadiran";
 const SHEET_JADWAL_PIKET = "Jadwal_Piket";
 const SHEET_PIKET = "Guru_Piket";
 const SHEET_APEL = "Rekap_Apel";
+const SHEET_PENGGUNA = "Pengguna";
 const HARI_LIST = ["Sabtu", "Ahad", "Senin", "Selasa", "Rabu", "Kamis"];
 
 /**
@@ -440,7 +443,7 @@ const HARI_LIST = ["Sabtu", "Ahad", "Senin", "Selasa", "Rabu", "Kamis"];
  */
 function setupDatabaseAwal() {
   setupInitialDatabase();
-  Logger.log("✅ Berhasil! Seluruh 12 Sheet Database SIRAMA telah dibuat & terisi lengkap.");
+  Logger.log("✅ Berhasil! Seluruh 13 Sheet Database SIRAMA telah dibuat & terisi lengkap.");
 }
 
 /**
@@ -626,6 +629,24 @@ function doGet(e) {
       }
     }
 
+    // 9. Baca Akun Pengguna / Users untuk Login Web App
+    const users = [];
+    const userSheet = ss.getSheetByName(SHEET_PENGGUNA) || ss.getSheetByName("Users") || ss.getSheetByName("Akun");
+    if (userSheet) {
+      const uData = userSheet.getDataRange().getValues();
+      for (let i = 1; i < uData.length; i++) {
+        const uRow = uData[i];
+        if (!uRow[0] && !uRow[2]) continue;
+        users.push({
+          username: String(uRow[0] || '').trim(),
+          password: String(uRow[1] || '').trim(),
+          nama: String(uRow[2] || '').trim(),
+          role: String(uRow[3] || 'Staff').trim(),
+          keterangan: String(uRow[4] || '').trim()
+        });
+      }
+    }
+
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
       config: config,
@@ -635,7 +656,8 @@ function doGet(e) {
       jadwalPiket: jadwalPiket,
       attendance: attendance,
       guruPiket: guruPiket,
-      rekapApel: rekapApel
+      rekapApel: rekapApel,
+      users: users
     })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
@@ -1147,6 +1169,29 @@ function setupInitialDatabase() {
       "ID", "Tanggal", "Hari", "Nama", "Kategori", "Jabatan / Jadwal", "Status", "Keterangan", "Waktu Input"
     ]);
     apelSheet.getRange("A1:I1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+  }
+
+  // 9. Sheet Pengguna / Users untuk Login Web App
+  let userSheet = ss.getSheetByName(SHEET_PENGGUNA);
+  if (!userSheet) {
+    userSheet = ss.insertSheet(SHEET_PENGGUNA);
+  }
+  if (userSheet.getLastRow() < 2) {
+    userSheet.clear();
+    userSheet.appendRow(["USERNAME", "PASSWORD", "NAMA LENGKAP", "JABATAN / ROLE", "KETERANGAN"]);
+    userSheet.getRange("A1:E1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+
+    const defaultUsers = [
+      ["evan", "123456", "Ust. Evan, S.Pd.", "Waka Kurikulum", "Admin Kurikulum"],
+      ["kepala", "123456", "Ust. H. Ahmad Baidhowi, S.Pd.I., M.Pd.", "Kepala Madrasah", "Pimpinan Madrasah"],
+      ["edi", "123456", "Ust. Edi Amin, M.Hum.", "Waka Kurikulum", "Waka Kurikulum"],
+      ["fathan", "123456", "Ust. Muh. Fathan Zamani, M.A.", "Waka Kesiswaan", "Waka Kesiswaan"],
+      ["djamauddin", "123456", "Ust. H. Djamauddin, M.Pd.I.", "Waka Humas", "Waka Humas"],
+      ["evayanto", "123456", "Ust. Dwi Evayanto, S.Kom", "Waka Sarpras", "Waka Sarpras"],
+      ["piket", "123456", "Guru Piket Harian", "Guru Piket", "Petugas Piket"],
+      ["admin", "admin123", "Administrator SIRAMA", "Administrator", "Super Admin"]
+    ];
+    userSheet.getRange(2, 1, defaultUsers.length, 5).setValues(defaultUsers);
   }
 }
 `;

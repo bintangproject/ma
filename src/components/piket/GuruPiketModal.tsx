@@ -51,11 +51,12 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
     if (existing) {
       // Mengonstruksi daftar petugas dari history
       const newList = [];
+      const anyExisting = existing as any;
       let i = 1;
-      while (existing[`piket${i}`]) {
+      while (anyExisting[`piket${i}`]) {
         newList.push({ 
-          nama: existing[`piket${i}`], 
-          status: existing[`status${i}`] as PiketStatus || 'HADIR' 
+          nama: anyExisting[`piket${i}`], 
+          status: (anyExisting[`status${i}`] as PiketStatus) || 'HADIR' 
         });
         i++;
       }

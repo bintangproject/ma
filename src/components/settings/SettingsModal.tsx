@@ -97,7 +97,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       return;
     }
 
-    if (!window.confirm('Inisialisasi seluruh 12 sheet struktur database di Spreadsheet Anda sekarang? Sheet yang belum ada akan dibuat & sheet yang kosong akan dilengkapi.')) {
+    if (!window.confirm('Inisialisasi seluruh 13 sheet struktur database di Spreadsheet Anda sekarang? Termasuk sheet "Pengguna" untuk akun login, jadwal piket, kehadiran, dll. Sheet yang belum ada akan dibuat & sheet yang kosong akan dilengkapi.')) {
       return;
     }
 
@@ -220,13 +220,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <span>Kode Google Apps Script (kode.gs v2.2) & Setup Database</span>
+                    <span>Kode Google Apps Script (kode.gs v2.3) & Setup Database</span>
                     <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30 font-mono">
-                      Fix Save Error & Auto Setup
+                      Login Users & Auto Setup
                     </span>
                   </h4>
                   <p className="text-[11px] text-slate-300">
-                    Otomatis membuat 12 sheet & memperbaiki error penyimpanan di Google Spreadsheet
+                    Otomatis membuat 13 sheet (termasuk sheet <strong>Pengguna</strong> untuk akun login), KBM, Guru Piket, & Apel
                   </p>
                 </div>
               </div>

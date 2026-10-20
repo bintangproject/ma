@@ -1,6 +1,6 @@
 import React from 'react';
 import { MadarLogo } from '../common/MadarLogo';
-import { InstitutionConfig } from '../../types/attendance';
+import { InstitutionConfig, AppUser } from '../../types/attendance';
 import { 
   LayoutDashboard, 
   ClipboardList, 
@@ -19,7 +19,8 @@ import {
   X,
   ChevronRight,
   Sparkles,
-  UserX
+  UserX,
+  LogOut
 } from 'lucide-react';
 
 export type NavItem = 
@@ -50,6 +51,8 @@ interface SidebarProps {
   isLiveConnected: boolean;
   lastSyncTime: string | null;
   onSync: () => void;
+  currentUser?: AppUser | null;
+  onLogout?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -62,6 +65,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isLiveConnected,
   lastSyncTime,
   onSync,
+  currentUser,
+  onLogout,
 }) => {
   return (
     <>
@@ -386,19 +391,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Bottom User / Staff Banner */}
-        <div className="p-3 border-t border-slate-100 bg-slate-50/70">
-          <div className="flex items-center gap-2.5 px-2 py-1.5">
-            <div className="w-8 h-8 rounded-full bg-sky-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
-              EA
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-slate-800 truncate">
-                {config.NAMA_STAFF || 'Ust. Edi Amin, M.Hum.'}
+        <div className="p-3 border-t border-slate-200/80 bg-gradient-to-r from-slate-50 to-sky-50/40">
+          <div className="flex items-center justify-between gap-2 px-1 py-1">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className={`w-8 h-8 rounded-xl text-white flex items-center justify-center font-black text-xs shadow-2xs shrink-0 ${
+                (currentUser?.role || '').toLowerCase().includes('kepala')
+                  ? 'bg-emerald-600'
+                  : (currentUser?.role || '').toLowerCase().includes('kurikulum')
+                  ? 'bg-sky-600'
+                  : (currentUser?.role || '').toLowerCase().includes('piket')
+                  ? 'bg-amber-600'
+                  : 'bg-indigo-600'
+              }`}>
+                {currentUser?.nama
+                  ? currentUser.nama.replace(/^(Ust\.|Ustd\.|K\.|KH\.|Gus\.|Ny\.)\s*/i, '').charAt(0) || 'U'
+                  : 'EA'}
               </div>
-              <div className="text-[10px] text-slate-500 truncate">
-                {config.JABATAN_STAFF || 'Waka Kurikulum'}
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-extrabold text-slate-800 truncate" title={currentUser?.nama || config.NAMA_STAFF}>
+                  {currentUser?.nama || config.NAMA_STAFF || 'Ust. Edi Amin, M.Hum.'}
+                </div>
+                <div className="text-[10px] font-bold text-sky-700 truncate">
+                  {currentUser?.role || config.JABATAN_STAFF || 'Waka Kurikulum'}
+                </div>
               </div>
             </div>
+
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
+                title="Keluar / Ganti Akun"
+              >
+                <LogOut size={16} />
+              </button>
+            )}
           </div>
         </div>
 

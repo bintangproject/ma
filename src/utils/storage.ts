@@ -1,10 +1,11 @@
-import { AttendanceRecord, InstitutionConfig, MasterGuru, MasterMapel, DayScheduleMap, GuruPiketRecord, ApelAttendanceRecord } from '../types/attendance';
+import { AttendanceRecord, InstitutionConfig, MasterGuru, MasterMapel, DayScheduleMap, GuruPiketRecord, ApelAttendanceRecord, AppUser } from '../types/attendance';
 import { 
   DEFAULT_INSTITUTION_CONFIG, 
   DEFAULT_MASTER_GURU, 
   DEFAULT_MASTER_MAPEL, 
   DEFAULT_WEEKLY_SCHEDULE, 
   DEFAULT_JADWAL_PIKET,
+  DEFAULT_APP_USERS,
   getInitialAttendanceRecords 
 } from '../data/defaultData';
 import { APP_CONFIG } from '../config/appConfig';
@@ -19,6 +20,8 @@ const STORAGE_KEYS = {
   GURU_PIKET: 'madar_sirama_guru_piket_v1',
   JADWAL_PIKET: 'madar_sirama_jadwal_piket_v1',
   REKAP_APEL: 'madar_sirama_rekap_apel_v1',
+  USERS: 'madar_sirama_users_v1',
+  CURRENT_USER: 'madar_sirama_current_user_v1',
 };
 
 // Fallback legacy keys for migration
@@ -250,5 +253,61 @@ export function saveLastSyncTime(timeStr: string): void {
     localStorage.setItem(STORAGE_KEYS.LAST_SYNC, timeStr);
   } catch {
     // Ignore
+  }
+}
+
+export function loadStoredUsers(): AppUser[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.USERS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {
+    console.error('Failed to load users', e);
+  }
+  return DEFAULT_APP_USERS;
+}
+
+export function saveStoredUsers(users: AppUser[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  } catch (e) {
+    console.error('Failed to save users', e);
+  }
+}
+
+export function loadCurrentUser(): AppUser | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && parsed.username) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load current user', e);
+  }
+  return null;
+}
+
+export function saveCurrentUser(user: AppUser | null): void {
+  try {
+    if (user) {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    }
+  } catch (e) {
+    console.error('Failed to save current user', e);
+  }
+}
+
+export function clearCurrentUser(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+  } catch (e) {
+    console.error('Failed to clear current user', e);
   }
 }

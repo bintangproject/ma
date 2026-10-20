@@ -7,7 +7,8 @@ import {
   MasterMapel,
   DayScheduleMap,
   GuruPiketRecord,
-  ApelAttendanceRecord
+  ApelAttendanceRecord,
+  AppUser
 } from './types/attendance';
 import { 
   loadStoredConfig, 
@@ -26,6 +27,11 @@ import {
   saveStoredJadwalPiket,
   loadStoredRekapApel,
   saveStoredRekapApel,
+  loadStoredUsers,
+  saveStoredUsers,
+  loadCurrentUser,
+  saveCurrentUser,
+  clearCurrentUser,
   loadLastSyncTime,
   saveLastSyncTime 
 } from './utils/storage';
@@ -65,6 +71,7 @@ import { SettingsModal } from './components/settings/SettingsModal';
 import { GasGuideModal } from './components/settings/GasGuideModal';
 import { GitHubSyncModal } from './components/settings/GitHubSyncModal';
 import { MadarLogo, parseDirectImageUrl } from './components/common/MadarLogo';
+import { LoginPage } from './components/auth/LoginPage';
 import { APP_CONFIG } from './config/appConfig';
 
 import { 
@@ -80,7 +87,8 @@ import {
   Shield,
   Award,
   Clock,
-  Menu
+  Menu,
+  LogOut
 } from 'lucide-react';
 
 export default function App() {
@@ -93,6 +101,8 @@ export default function App() {
   const [guruPiketHistory, setGuruPiketHistory] = useState<GuruPiketRecord[]>(loadStoredGuruPiket);
   const [jadwalPiket, setJadwalPiket] = useState<Record<string, string[]>>(loadStoredJadwalPiket);
   const [rekapApelHistory, setRekapApelHistory] = useState<ApelAttendanceRecord[]>(loadStoredRekapApel);
+  const [users, setUsers] = useState<AppUser[]>(loadStoredUsers);
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(loadCurrentUser);
 
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(loadLastSyncTime);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
@@ -250,6 +260,21 @@ export default function App() {
           setRekapApelHistory(result.data.rekapApel);
           saveStoredRekapApel(result.data.rekapApel);
         }
+        // Users / Akun Pengguna dari Spreadsheet
+        if (result.data.users && result.data.users.length > 0) {
+          setUsers(result.data.users);
+          saveStoredUsers(result.data.users);
+          // Update role/name of logged-in user if changed in spreadsheet
+          if (currentUser) {
+            const updatedSelf = result.data.users.find(
+              u => u.username.toLowerCase() === currentUser.username.toLowerCase()
+            );
+            if (updatedSelf) {
+              setCurrentUser(updatedSelf);
+              saveCurrentUser(updatedSelf);
+            }
+          }
+        }
         // Config if present
         if (result.data.config && Object.keys(result.data.config).length > 0) {
           setConfig(prev => {
@@ -280,6 +305,58 @@ export default function App() {
         type: 'error',
         message: `Terjadi kendala saat koneksi: ${e.message}`,
       });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // User Authentication Handlers
+  const handleLogin = (user: AppUser) => {
+    setCurrentUser(user);
+    saveCurrentUser(user);
+    setSyncNotice({
+      type: 'success',
+      message: `Selamat datang, ${user.nama} (${user.role})!`,
+    });
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    clearCurrentUser();
+    setSyncNotice({
+      type: 'info',
+      message: 'Anda telah keluar dari aplikasi SIRAMA.',
+    });
+  };
+
+  const handleSyncUsers = async (): Promise<{ success: boolean; message: string; count?: number }> => {
+    if (!config.gasUrl) {
+      return {
+        success: false,
+        message: 'URL Google Apps Script belum diisi pada pengaturan.',
+      };
+    }
+    setIsSyncing(true);
+    try {
+      const res = await fetchFromGoogleSheets(config.gasUrl);
+      if (res.success && res.data?.users && res.data.users.length > 0) {
+        setUsers(res.data.users);
+        saveStoredUsers(res.data.users);
+        return {
+          success: true,
+          message: `Berhasil menyinkronkan ${res.data.users.length} data akun pengguna dari Spreadsheet!`,
+          count: res.data.users.length,
+        };
+      }
+      return {
+        success: false,
+        message: res.message || 'Sheet Pengguna belum memiliki data di Spreadsheet.',
+      };
+    } catch (e: any) {
+      return {
+        success: false,
+        message: `Gagal menghubungkan ke Spreadsheet: ${e.message}`,
+      };
     } finally {
       setIsSyncing(false);
     }
@@ -525,6 +602,19 @@ export default function App() {
     }
   };
 
+  // If user is not logged in, render dedicated LoginPage
+  if (!currentUser) {
+    return (
+      <LoginPage
+        config={config}
+        users={users}
+        onLogin={handleLogin}
+        onSyncUsers={handleSyncUsers}
+        isSyncing={isSyncing}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans selection:bg-sky-200 selection:text-sky-900">
       
@@ -539,6 +629,8 @@ export default function App() {
         isLiveConnected={isLiveConnected}
         lastSyncTime={lastSyncTime}
         onSync={() => handleSync(false)}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* Main Wrapper with Desktop Sidebar Offset */}
@@ -559,6 +651,8 @@ export default function App() {
           onOpenGitSync={() => setIsGitSyncModalOpen(true)}
           isLiveConnected={isLiveConnected}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          currentUser={currentUser}
+          onLogout={handleLogout}
         />
 
         {/* 3. Main Content Container */}
@@ -588,6 +682,50 @@ export default function App() {
               >
                 Tutup
               </button>
+            </div>
+          )}
+
+          {/* Welcome User Banner */}
+          {currentUser && (
+            <div className="bg-gradient-to-r from-sky-700 via-sky-800 to-indigo-800 rounded-2xl p-4 sm:p-5 text-white shadow-md shadow-sky-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
+              <div className="flex items-center gap-3">
+                <div className={`w-11 h-11 rounded-2xl text-white flex items-center justify-center font-black text-base shadow-inner border border-white/20 shrink-0 ${
+                  currentUser.role.toLowerCase().includes('kepala')
+                    ? 'bg-emerald-600'
+                    : currentUser.role.toLowerCase().includes('kurikulum')
+                    ? 'bg-sky-600'
+                    : currentUser.role.toLowerCase().includes('piket')
+                    ? 'bg-amber-600'
+                    : 'bg-indigo-600'
+                }`}>
+                  {currentUser.nama.replace(/^(Ust\.|Ustd\.|K\.|KH\.|Gus\.|Ny\.)\s*/i, '').charAt(0) || 'U'}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-sm sm:text-base font-extrabold tracking-tight">
+                      Selamat datang, {currentUser.nama}
+                    </h2>
+                    <span className="px-2 py-0.5 rounded-full bg-white/20 text-white font-extrabold text-[10px] tracking-wide uppercase">
+                      {currentUser.role}
+                    </span>
+                  </div>
+                  <p className="text-xs text-sky-100/90 mt-0.5">
+                    Akses portal presensi KBM, Guru Piket, Wajib Apel, dan rekapitulasi data MA Darul Lughah Wal Karomah.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white text-xs font-bold transition-all border border-white/20 flex items-center gap-1.5 cursor-pointer"
+                  title="Keluar dari akun saat ini"
+                >
+                  <LogOut size={13} />
+                  <span>Ganti Akun</span>
+                </button>
+              </div>
             </div>
           )}
 

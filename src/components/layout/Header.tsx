@@ -13,9 +13,11 @@ import {
   CheckCircle,
   AlertTriangle,
   GitBranch,
-  Menu
+  Menu,
+  LogOut,
+  UserCheck
 } from 'lucide-react';
-import { InstitutionConfig } from '../../types/attendance';
+import { InstitutionConfig, AppUser } from '../../types/attendance';
 
 interface HeaderProps {
   config: InstitutionConfig;
@@ -31,6 +33,8 @@ interface HeaderProps {
   onOpenGitSync: () => void;
   isLiveConnected: boolean;
   onToggleSidebar?: () => void;
+  currentUser?: AppUser | null;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -47,6 +51,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenGitSync,
   isLiveConnected,
   onToggleSidebar,
+  currentUser,
+  onLogout,
 }) => {
   return (
     <header className="bg-white border-b border-sky-100 shadow-xs sticky top-0 z-30 no-print">
@@ -56,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           
-          {/* Identity (Logo removed) */}
+          {/* Identity */}
           <div className="flex items-center gap-3">
             {onToggleSidebar && (
               <button
@@ -69,23 +75,23 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
-                    <span className="text-sky-700">{config.NAMA_APLIKASI || 'SIRAMA'}</span>
-                  </h1>
-                </div>
-                <p className="text-[10px] text-slate-600 font-semibold leading-tight">
-                  {config.KEPANJANGAN_APLIKASI || 'Sistem Informasi Rekap dan Absensi Pengajar Madrasah'}
-                </p>
-                <p className="text-[10px] text-slate-500 font-medium">
-                  {config.SINGKATAN || 'MA Darul Lughah Wal Karomah'} • {config.KOTA || 'Kraksaan'}
-                </p>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
+                  <span className="text-sky-700">{config.NAMA_APLIKASI || 'SIRAMA'}</span>
+                </h1>
               </div>
+              <p className="text-[10px] text-slate-600 font-semibold leading-tight">
+                {config.KEPANJANGAN_APLIKASI || 'Sistem Informasi Rekap dan Absensi Pengajar Madrasah'}
+              </p>
+              <p className="text-[10px] text-slate-500 font-medium">
+                {config.SINGKATAN || 'MA Darul Lughah Wal Karomah'} • {config.KOTA || 'Kraksaan'}
+              </p>
+            </div>
           </div>
 
-          {/* Sync Status & Action Buttons */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* User Profile Badge, Sync Status & Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             
             {/* GAS Sync Indicator */}
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-600">
@@ -133,6 +139,47 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Settings size={16} />
             </button>
+
+            {/* User Logged-in Badge & Logout */}
+            {currentUser && (
+              <div className="flex items-center gap-1.5 pl-1.5 border-l border-slate-200">
+                <div 
+                  className="flex items-center gap-2 bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200/90 rounded-xl px-2.5 py-1"
+                  title={`Sedang masuk sebagai: ${currentUser.nama} (${currentUser.role})`}
+                >
+                  <div className={`w-6 h-6 rounded-lg text-white font-black text-[11px] flex items-center justify-center shrink-0 shadow-2xs ${
+                    currentUser.role.toLowerCase().includes('kepala')
+                      ? 'bg-emerald-600'
+                      : currentUser.role.toLowerCase().includes('kurikulum')
+                      ? 'bg-sky-600'
+                      : currentUser.role.toLowerCase().includes('piket')
+                      ? 'bg-amber-600'
+                      : 'bg-indigo-600'
+                  }`}>
+                    {currentUser.nama ? currentUser.nama.replace(/^(Ust\.|Ustd\.|K\.|KH\.|Gus\.|Ny\.)\s*/i, '').charAt(0) || 'U' : 'U'}
+                  </div>
+                  <div className="flex flex-col text-left max-w-[120px] sm:max-w-[190px]">
+                    <span className="font-extrabold text-slate-900 text-[11px] leading-tight truncate">
+                      {currentUser.nama}
+                    </span>
+                    <span className="text-[10px] font-bold text-sky-700 truncate leading-tight">
+                      {currentUser.role}
+                    </span>
+                  </div>
+                </div>
+
+                {onLogout && (
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    className="p-1.5 text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-slate-200 transition-colors"
+                    title="Keluar / Ganti Akun"
+                  >
+                    <LogOut size={15} />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
         </div>

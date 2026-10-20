@@ -218,6 +218,10 @@ export const GasGuideModal: React.FC<GasGuideModalProps> = ({ isOpen, onClose })
                 </li>
                 <li>Klik <strong>Terapkan (Deploy)</strong> dan izinkan izin akses akun Google Anda.</li>
                 <li>Salin <strong>URL Aplikasi Web</strong> yang muncul (berakhiran <code>/exec</code>), lalu masukkan ke menu <strong>Pengaturan</strong> di aplikasi ini!</li>
+                <li className="font-semibold text-emerald-950 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 mt-1">
+                  🔑 <strong>Manajemen Akun Login Pengguna (Sheet 'Pengguna'):</strong><br />
+                  Data login (Username, Password, Nama Lengkap, dan Jabatan seperti Waka Kurikulum, Kepala Madrasah, Guru Piket) diambil langsung dari sheet <strong>Pengguna</strong>. Anda dapat menambah atau mengubah username & password langsung di Google Spreadsheet Anda kapan saja!
+                </li>
                 <li className="font-semibold text-sky-950 bg-sky-100/70 p-2 rounded-lg border border-sky-200 mt-1">
                   ⭐ <strong>Agar Langsung Terbuka Realtime di Semua Perangkat:</strong><br />
                   Taruh URL Web App tersebut langsung di dalam file <code>src/config/appConfig.ts</code> pada variabel <code>SPREADSHEET_GAS_URL</code>, lalu push ke GitHub. Dengan begitu, siapapun yang membuka webapp di HP, laptop, atau akun manapun akan langsung tersambung secara otomatis!

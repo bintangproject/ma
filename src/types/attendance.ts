@@ -25,6 +25,14 @@ export interface MasterGuru {
   keterangan?: string; // Struktural atau Guru: misal "Kepala Madrasah", "Waka Kurikulum", "Waka Kesiswaan", "Waka Humas", "Staff EMIS", "Kepala TU", "Guru", dsb.
 }
 
+export interface AppUser {
+  username: string;
+  password?: string;
+  nama: string;
+  role: string; // e.g. "Kepala Madrasah", "Waka Kurikulum", "Waka Kesiswaan", "Guru Piket", dsb.
+  keterangan?: string;
+}
+
 export interface MasterMapel {
   kode: number | string;
   nama: string;
