@@ -176,10 +176,11 @@ export const MonthlyPiketAttendanceSheet: React.FC<MonthlyPiketAttendanceSheetPr
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
   ];
 
-  // Jumlah baris catatan disesuaikan agar mengisi penuh halaman F4
+  // Jumlah baris catatan dan tinggi baris disesuaikan agar mengisi penuh halaman F4
   const numPiket = piketTeachers.length;
-  const catatanRowCount = numPiket > 5 ? 11 : 12;
-  const piketRowHeight = numPiket > 5 ? 'h-14' : 'h-16';
+  const piketRowHeight = numPiket >= 6 ? 'h-[64px]' : numPiket === 5 ? 'h-[72px]' : 'h-[80px]';
+  const catatanRowCount = 12;
+  const catatanRowHeight = numPiket >= 6 ? '56px' : '58px';
 
   return (
     <div className="space-y-4">
@@ -273,16 +274,16 @@ export const MonthlyPiketAttendanceSheet: React.FC<MonthlyPiketAttendanceSheetPr
           {/* Tabel 1: Tanda Tangan Kehadiran Guru Piket */}
           <table className="w-full border-collapse border border-slate-900 table-fixed mb-2">
             <thead>
-              <tr className="bg-slate-100 text-center font-bold text-[10px]">
-                <th className="border border-slate-900 px-1 py-2 w-[7%] text-center">NO</th>
-                <th className="border border-slate-900 px-2 py-2 w-[35%] text-center">NAMA GURU PIKET</th>
+              <tr className="bg-slate-100 text-center font-bold text-[11px]">
+                <th className="border border-slate-900 px-1 py-2.5 w-[7%] text-center">NO</th>
+                <th className="border border-slate-900 px-2 py-2.5 w-[35%] text-center">NAMA GURU PIKET</th>
                 {monthDates.map((dateObj, dIdx) => {
                   const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
                   const d = dateObj.getDate();
                   const m = shortMonths[dateObj.getMonth()];
                   const dateStr = `${d < 10 ? '0' + d : d} ${m}`;
                   return (
-                    <th key={dIdx} className="border border-slate-900 px-1 py-2 text-center font-bold text-[9.5px] whitespace-nowrap">
+                    <th key={dIdx} className="border border-slate-900 px-1 py-2 text-center font-bold text-[12px] whitespace-nowrap">
                       {dateStr}
                     </th>
                   );
@@ -292,10 +293,10 @@ export const MonthlyPiketAttendanceSheet: React.FC<MonthlyPiketAttendanceSheetPr
             <tbody>
               {piketTeachers.map((namaGuru, idx) => (
                 <tr key={idx} className={piketRowHeight}>
-                  <td className="border border-slate-900 px-1 py-1 text-center font-bold text-[11px]">
+                  <td className="border border-slate-900 px-1 py-1 text-center font-bold text-[13px]">
                     {idx + 1}
                   </td>
-                  <td className="border border-slate-900 px-2.5 py-1 font-bold text-[12px] text-slate-900 truncate">
+                  <td className="border border-slate-900 px-3 py-1 font-bold text-[14px] text-slate-900 truncate">
                     {namaGuru}
                   </td>
                   {monthDates.map((_, dIdx) => (
@@ -305,26 +306,26 @@ export const MonthlyPiketAttendanceSheet: React.FC<MonthlyPiketAttendanceSheetPr
               ))}
             </tbody>
           </table>
-          <p className="text-[9.5px] italic text-slate-700 mb-3.5 font-medium leading-normal">
+          <p className="text-[9.5px] italic text-slate-700 mb-3 font-medium leading-normal">
             * Kolom diisi dengan tanda tangan guru piket pada tanggal dan hari yang bersangkutan.
           </p>
 
-          {/* Tabel 2: Catatan Kejadian / Laporan Guru Piket */}
+          {/* Tabel 2: Catatan Kejadian / Laporan Guru Piket (Diperlebar vertikal memenuhi kertas) */}
           <div>
             <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wide mb-1.5">
               CATATAN GURU PIKET:
             </h3>
             <table className="w-full border-collapse border border-slate-900 table-fixed">
               <thead>
-                <tr className="bg-slate-100 text-center font-bold text-[10px]">
-                  <th className="border border-slate-900 px-2 py-1.5 w-[18%] text-center">TANGGAL</th>
-                  <th className="border border-slate-900 px-2 py-1.5 w-[57%] text-center">CATATAN KEJADIAN / PERISTIWA</th>
-                  <th className="border border-slate-900 px-2 py-1.5 w-[25%] text-center">PETUGAS PIKET / TTD</th>
+                <tr className="bg-slate-100 text-center font-bold text-[11px]">
+                  <th className="border border-slate-900 px-2 py-2 w-[18%] text-center">TANGGAL</th>
+                  <th className="border border-slate-900 px-2 py-2 w-[57%] text-center">CATATAN KEJADIAN / PERISTIWA</th>
+                  <th className="border border-slate-900 px-2 py-2 w-[25%] text-center">PETUGAS PIKET / TTD</th>
                 </tr>
               </thead>
               <tbody>
                 {[...Array(catatanRowCount)].map((_, i) => (
-                  <tr key={i} className="h-12 hover:bg-slate-50/50">
+                  <tr key={i} style={{ height: catatanRowHeight }} className="hover:bg-slate-50/50">
                     <td className="border border-slate-900 px-2 py-1"></td>
                     <td className="border border-slate-900 px-2 py-1"></td>
                     <td className="border border-slate-900 px-2 py-1"></td>
