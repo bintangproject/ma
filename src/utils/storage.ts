@@ -18,7 +18,7 @@ const STORAGE_KEYS = {
   SCHEDULES: 'madar_sirama_schedules_v1',
   LAST_SYNC: 'madar_sirama_last_sync_v1',
   GURU_PIKET: 'madar_sirama_guru_piket_v1',
-  JADWAL_PIKET: 'madar_sirama_jadwal_piket_v1',
+  JADWAL_PIKET: 'madar_sirama_jadwal_piket_v2',
   REKAP_APEL: 'madar_sirama_rekap_apel_v1',
   USERS: 'madar_sirama_users_v1',
   CURRENT_USER: 'madar_sirama_current_user_v1',
@@ -206,8 +206,13 @@ export function loadStoredJadwalPiket(): Record<string, string[]> {
       if (parsed && typeof parsed === 'object') {
         const result: Record<string, string[]> = { ...DEFAULT_JADWAL_PIKET };
         Object.keys(parsed).forEach(day => {
-          if (Array.isArray(parsed[day]) && parsed[day].length > 0) {
-            result[day] = parsed[day];
+          if (Array.isArray(parsed[day])) {
+            const cleanList = parsed[day]
+              .map((name: any) => typeof name === 'string' ? name.trim() : '')
+              .filter((name: string) => name.length > 0);
+            if (cleanList.length > 0) {
+              result[day] = cleanList;
+            }
           }
         });
         return result;

@@ -215,6 +215,17 @@ export default function App() {
     return () => clearInterval(interval);
   }, [config.gasUrl, config.autoSyncIntervalMinutes, isBulkModalOpen, isPiketModalOpen, isApelModalOpen, isSettingsModalOpen]);
 
+  // Auto-sync saat tab browser aktif kembali / layar HP dibuka kembali
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && config.gasUrl) {
+        handleSync(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [config.gasUrl]);
+
   // 4. Synchronization Handler
   const handleSync = async (silent = false) => {
     if (!config.gasUrl) {
@@ -332,6 +343,10 @@ export default function App() {
       type: 'success',
       message: `Selamat datang, ${user.nama} (${user.role})!`,
     });
+    // Sinkronkan seluruh data seketika begitu user login di perangkat manapun
+    setTimeout(() => {
+      handleSync(true);
+    }, 100);
   };
 
   const handleLogout = () => {
@@ -343,7 +358,7 @@ export default function App() {
     });
   };
 
-  const handleSyncUsers = async (): Promise<{ success: boolean; message: string; count?: number }> => {
+  const handleSyncUsers = async (): Promise<{ success: boolean; message: string; count?: number; users?: AppUser[] }> => {
     if (!config.gasUrl) {
       return {
         success: false,
@@ -392,6 +407,7 @@ export default function App() {
           success: true,
           message: `Berhasil menyinkronkan ${userCount} data akun pengguna dari Spreadsheet!`,
           count: userCount,
+          users: res.data.users || [],
         };
       }
       return {

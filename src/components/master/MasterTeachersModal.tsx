@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { MasterGuru } from '../../types/attendance';
-import { Users, Search, FileSpreadsheet, Shield, GraduationCap, CheckCircle } from 'lucide-react';
+import { Users, Search, Shield, GraduationCap, CheckCircle } from 'lucide-react';
 
 interface MasterTeachersModalProps {
   isOpen: boolean;
@@ -32,23 +32,12 @@ export const MasterTeachersModal: React.FC<MasterTeachersModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Data Dewan Guru & Struktural (View Only)"
-      subtitle="Data tersinkronisasi secara otomatis dari sheet Master_Guru di Google Spreadsheet"
+      title="Data Dewan Guru & Struktural"
+      subtitle="Data dewan guru tersinkronisasi otomatis dari Google Spreadsheet"
       icon={<Users size={20} className="text-sky-600" />}
       maxWidth="3xl"
     >
       <div className="space-y-4">
-        
-        {/* Info Banner: View Only from Spreadsheet */}
-        <div className="bg-sky-50 border border-sky-200 rounded-xl p-3.5 flex items-start gap-3 text-xs text-sky-950">
-          <FileSpreadsheet size={20} className="text-sky-600 shrink-0 mt-0.5" />
-          <div className="leading-relaxed">
-            <span className="font-bold">Mode Lihat Saja (Tersentralisasi di Spreadsheet):</span>
-            <p className="text-slate-600 text-[11px] mt-0.5">
-              Daftar dewan guru, kode inisial, dan keterangan jabatan struktural disetting langsung di Google Spreadsheet pada sheet <strong>Master_Guru</strong>. Hal ini memastikan data tetap terpusat dan aman.
-            </p>
-          </div>
-        </div>
 
         {/* Top Search & Stats */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

@@ -17,7 +17,7 @@ interface LoginPageProps {
   config: InstitutionConfig;
   users: AppUser[];
   onLogin: (user: AppUser) => void;
-  onSyncUsers: () => Promise<{ success: boolean; message: string; count?: number }>;
+  onSyncUsers: () => Promise<{ success: boolean; message: string; count?: number; users?: AppUser[] }>;
   isSyncing: boolean;
 }
 
@@ -63,17 +63,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       // 2. Jika belum ditemukan di perangkat ini (misal akun baru di Spreadsheet atau perangkat baru),
       // otomatis tarik data terbaru dari Google Spreadsheet secara realtime!
       if (!matchedUser) {
-        await onSyncUsers();
-        try {
-          const raw = localStorage.getItem('madar_sirama_users_v1');
-          if (raw) {
-            const freshUsers: AppUser[] = JSON.parse(raw);
-            matchedUser = freshUsers.find(
-              (u) => u.username.trim().toLowerCase() === cleanUsername
-            );
+        const syncRes = await onSyncUsers();
+        if (syncRes && syncRes.users && Array.isArray(syncRes.users)) {
+          matchedUser = syncRes.users.find(
+            (u) => u.username.trim().toLowerCase() === cleanUsername
+          );
+        }
+        if (!matchedUser) {
+          try {
+            const raw = localStorage.getItem('madar_sirama_users_v1');
+            if (raw) {
+              const freshUsers: AppUser[] = JSON.parse(raw);
+              matchedUser = freshUsers.find(
+                (u) => u.username.trim().toLowerCase() === cleanUsername
+              );
+            }
+          } catch {
+            // ignore
           }
-        } catch {
-          // ignore
         }
       }
 
@@ -239,17 +246,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </button>
             </form>
 
-            {/* Subtle Sync Button */}
-            <div className="pt-2 text-center border-t border-slate-100">
+            {/* Subtle Realtime Indicator */}
+            <div className="pt-2 text-center border-t border-slate-100 flex items-center justify-center">
               <button
                 type="button"
                 onClick={handleTriggerSync}
                 disabled={isSyncing}
-                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-400 hover:text-sky-600 transition-colors disabled:opacity-50"
-                title="Perbarui daftar akun jika Anda baru saja mengubah akun di Spreadsheet"
+                className="inline-flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-sky-600 transition-colors cursor-pointer"
+                title="Klik untuk menyinkronkan ulang data akun"
               >
-                <RefreshCw size={11} className={isSyncing ? 'animate-spin' : ''} />
-                <span>{isSyncing ? 'Menyinkronkan data akun...' : 'Perbarui akun dari Spreadsheet'}</span>
+                <span className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                <span>{isSyncing ? 'Menyinkronkan data realtime...' : 'Akun tersinkronisasi otomatis dari Spreadsheet'}</span>
               </button>
             </div>
 

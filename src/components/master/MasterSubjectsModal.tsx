@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { MasterMapel } from '../../types/attendance';
-import { BookOpen, Search, FileSpreadsheet } from 'lucide-react';
+import { BookOpen, Search } from 'lucide-react';
 
 interface MasterSubjectsModalProps {
   isOpen: boolean;
@@ -25,23 +25,12 @@ export const MasterSubjectsModal: React.FC<MasterSubjectsModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Master Mata Pelajaran (View Only)"
-      subtitle="Data tersinkronisasi otomatis dari sheet Master_Mapel di Google Spreadsheet"
+      title="Master Data Mata Pelajaran"
+      subtitle="Data mata pelajaran tersinkronisasi otomatis dari Google Spreadsheet"
       icon={<BookOpen size={20} className="text-sky-600" />}
       maxWidth="3xl"
     >
       <div className="space-y-4">
-        
-        {/* Info Banner: View Only from Spreadsheet */}
-        <div className="bg-sky-50 border border-sky-200 rounded-xl p-3.5 flex items-start gap-3 text-xs text-sky-950">
-          <FileSpreadsheet size={20} className="text-sky-600 shrink-0 mt-0.5" />
-          <div className="leading-relaxed">
-            <span className="font-bold">Mode Lihat Saja (Tersentralisasi di Spreadsheet):</span>
-            <p className="text-slate-600 text-[11px] mt-0.5">
-              Daftar mata pelajaran dan kurikulum disetting langsung melalui sheet <strong>Master_Mapel</strong> di Google Spreadsheet Anda.
-            </p>
-          </div>
-        </div>
 
         {/* Top Search & Stats */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

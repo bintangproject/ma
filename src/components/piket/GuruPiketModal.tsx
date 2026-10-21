@@ -10,13 +10,9 @@ import {
   Check, 
   Share2, 
   Calendar, 
-  FileSpreadsheet, 
   Printer, 
-  Plus, 
-  Trash2, 
   RotateCcw,
-  CheckCircle2,
-  AlertCircle
+  CheckCircle2
 } from 'lucide-react';
 import { MonthlyAttendanceSheet } from './MonthlyAttendanceSheet';
 import { MonthlyPiketAttendanceSheet } from './MonthlyPiketAttendanceSheet';
@@ -47,33 +43,33 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedHari, setSelectedHari] = useState(getIndonesianDayName(todayStr));
 
-  // Petugas Piket harian (mendukung berapapun jumlah guru: 4, 5, 6 atau lebih)
+  // Petugas Piket harian murni tersinkronisasi dari sheet Jadwal_Piket Spreadsheet
   const [petugasList, setPetugasList] = useState<{ nama: string; status: PiketStatus }[]>([]);
 
   const [keterangan, setKeterangan] = useState('');
   const [copied, setCopied] = useState(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
 
-  // Form tambah petugas baru
-  const [isAddingNew, setIsAddingNew] = useState(false);
-  const [newTeacherName, setNewTeacherName] = useState('');
-
-  // When date changes or modal opens, load scheduled teachers from Spreadsheet
+  // When date changes or modal opens, load scheduled teachers strictly from Spreadsheet schedule
   useEffect(() => {
     if (!isOpen) return;
     const day = getIndonesianDayName(selectedDate);
     setSelectedHari(day);
     setSaveNotice(null);
-    setIsAddingNew(false);
 
-    const scheduled = (jadwalPiket[day] && jadwalPiket[day].length > 0) 
+    const rawScheduled = (jadwalPiket[day] && jadwalPiket[day].length > 0) 
       ? jadwalPiket[day] 
       : (DEFAULT_JADWAL_PIKET[day] || []);
+    
+    // Pastikan hanya nama guru yang valid dan tidak kosong dari sheet Jadwal_Piket
+    const scheduled = rawScheduled
+      .map(s => (typeof s === 'string' ? s.trim() : ''))
+      .filter(s => s.length > 0);
 
     const existing = piketHistory.find(p => p.tanggal === selectedDate);
 
     if (existing) {
-      // Ambil status presensi yang sudah tersimpan untuk mencocokkan guru piket jadwal
+      // Ambil status presensi yang pernah disimpan untuk dicocokkan dengan nama guru jadwal sheet
       const anyExisting = existing as any;
       const statusMap = new Map<string, PiketStatus>();
 
@@ -93,7 +89,7 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
         i++;
       }
 
-      // Tampilkan TEPAT sesuai daftar guru yang dijadwalkan di Spreadsheet hari ini
+      // Tampilkan TEPAT HANYA guru yang dijadwalkan di Spreadsheet untuk hari ini
       const populated = scheduled.map((sName) => {
         const clean = sName.toLowerCase().replace(/[^a-z0-9]/g, '');
         return {
@@ -112,17 +108,23 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
       setPetugasList(initialized);
       setKeterangan('');
     }
-  }, [selectedDate, isOpen, piketHistory, jadwalPiket, teachers]);
+  }, [selectedDate, isOpen, piketHistory, jadwalPiket]);
 
   const handleResetToSpreadsheet = () => {
     const day = getIndonesianDayName(selectedDate);
-    const scheduled = jadwalPiket[day] || DEFAULT_JADWAL_PIKET[day] || [];
+    const rawScheduled = (jadwalPiket[day] && jadwalPiket[day].length > 0) 
+      ? jadwalPiket[day] 
+      : (DEFAULT_JADWAL_PIKET[day] || []);
+    const scheduled = rawScheduled
+      .map(s => (typeof s === 'string' ? s.trim() : ''))
+      .filter(s => s.length > 0);
+
     const initialized = scheduled.map((s) => ({
       nama: s,
       status: 'HADIR' as PiketStatus,
     }));
     setPetugasList(initialized);
-    setSaveNotice(`Daftar petugas piket berhasil dimuat ulang sesuai jadwal sheet (${scheduled.length} guru).`);
+    setSaveNotice(`Daftar petugas piket berhasil dimuat ulang sesuai sheet Jadwal_Piket (${scheduled.length} guru).`);
     setTimeout(() => setSaveNotice(null), 3500);
   };
 
@@ -150,18 +152,6 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
     setPetugasList(prev => prev.map((p, i) => i === idx ? { ...p, status } : p));
   };
 
-  const handleRemovePetugas = (idx: number) => {
-    setPetugasList(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  const handleAddPetugas = () => {
-    const trimmed = newTeacherName.trim();
-    if (!trimmed) return;
-    setPetugasList(prev => [...prev, { nama: trimmed, status: 'HADIR' }]);
-    setNewTeacherName('');
-    setIsAddingNew(false);
-  };
-
   const generatePiketWaText = () => {
     const institutionName = (config.SINGKATAN || config.NAMA_LEMBAGA || 'MA DARUL LUGHAH WAL KAROMAH').toUpperCase();
     let text = `🛡️ *GURU PIKET MADRASAH*\n`;
@@ -181,7 +171,7 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
     }
 
     text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `_Jadwal piket diatur melalui Spreadsheet. Dikelola via SIRAMA._\n`;
+    text += `_Daftar petugas piket bersumber dari Google Spreadsheet._\n`;
     text += `_Waka Kurikulum: ${config.NAMA_STAFF || 'Ust. Edi Amin, M.Hum.'}_`;
     return text;
   };
@@ -280,28 +270,6 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
 
         {activeTab === 'daily' ? (
           <div className="space-y-4">
-            {/* Info Banner: Jadwal dari Spreadsheet */}
-            <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 flex items-start justify-between gap-3 text-xs text-sky-900">
-              <div className="flex items-start gap-2.5">
-                <FileSpreadsheet size={18} className="text-sky-600 shrink-0 mt-0.5" />
-                <div className="leading-relaxed">
-                  <span className="font-bold">Jadwal Guru Piket Otomatis dari Spreadsheet:</span>
-                  <p className="text-slate-600 text-[11px] mt-0.5">
-                    Daftar nama petugas piket (fleksibel: 4, 5, 6 guru atau lebih per hari) diambil otomatis dari sheet <strong>Jadwal_Piket</strong> di Google Spreadsheet. Anda dapat menandai kehadiran atau menambah/mengurangi petugas sesuai kebutuhan.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleResetToSpreadsheet}
-                title="Muat ulang seluruh nama guru piket dari jadwal Spreadsheet"
-                className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-sky-700 bg-white border border-sky-200 hover:bg-sky-100/60 rounded-lg transition-colors cursor-pointer"
-              >
-                <RotateCcw size={12} />
-                <span>Reset Jadwal Sheet</span>
-              </button>
-            </div>
-
             {/* Save Notice Banner */}
             {saveNotice && (
               <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2 animate-in fade-in">
@@ -310,7 +278,7 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
               </div>
             )}
 
-            {/* Date Selector */}
+            {/* Date Selector & Day Header */}
             <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Calendar size={16} className="text-sky-600" />
@@ -330,10 +298,19 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
                 <div className="text-xs font-bold text-sky-900 bg-sky-100 px-3 py-1 rounded-lg">
                   Hari {selectedHari}
                 </div>
+                <button
+                  type="button"
+                  onClick={handleResetToSpreadsheet}
+                  title="Muat ulang daftar guru piket dari sheet Jadwal_Piket"
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:text-sky-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                >
+                  <RotateCcw size={12} />
+                  <span>Muat Ulang Sheet</span>
+                </button>
               </div>
             </div>
 
-            {/* Petugas Piket Cards */}
+            {/* Petugas Piket Cards (Strictly following sheet Jadwal_Piket, no manual add/remove) */}
             <div className="space-y-2.5">
               {petugasList.map((p, i) => (
                 <div key={i} className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-sky-300 transition-colors">
@@ -347,70 +324,14 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
                   
                   <div className="flex items-center gap-2 self-end sm:self-center">
                     <div>{renderStatusSelector(p.status, (s) => handleStatusChange(i, s))}</div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePetugas(i)}
-                      title="Hapus petugas dari daftar hari ini"
-                      className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                    >
-                      <Trash2 size={14} />
-                    </button>
                   </div>
                 </div>
               ))}
 
-              {/* Add Teacher Section */}
-              {isAddingNew ? (
-                <div className="bg-sky-50/60 p-3 rounded-xl border border-sky-200 space-y-2.5 animate-in fade-in">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-sky-900">Tambah Petugas Piket Tambahan:</span>
-                    <button
-                      type="button"
-                      onClick={() => setIsAddingNew(false)}
-                      className="text-[11px] text-slate-500 hover:text-slate-700 cursor-pointer"
-                    >
-                      Batal
-                    </button>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <select
-                      value={newTeacherName}
-                      onChange={(e) => setNewTeacherName(e.target.value)}
-                      className="flex-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                    >
-                      <option value="">-- Pilih dari Dewan Guru --</option>
-                      {teachers.map(t => (
-                        <option key={t.kode || t.nama} value={t.nama}>
-                          {t.nama} {t.keterangan ? `(${t.keterangan})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="text"
-                      placeholder="Atau ketik nama petugas..."
-                      value={newTeacherName}
-                      onChange={(e) => setNewTeacherName(e.target.value)}
-                      className="sm:w-64 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddPetugas}
-                      disabled={!newTeacherName.trim()}
-                      className="px-3 py-1.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
-                    >
-                      Tambahkan
-                    </button>
-                  </div>
+              {petugasList.length === 0 && (
+                <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">
+                  Tidak ada guru piket yang terjadwal untuk hari {selectedHari} di sheet Jadwal_Piket.
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsAddingNew(true)}
-                  className="w-full py-2 border border-dashed border-slate-300 hover:border-sky-400 hover:bg-sky-50/40 text-slate-600 hover:text-sky-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <Plus size={14} />
-                  <span>Tambah Guru Piket Lainnya (Petugas {petugasList.length + 1})</span>
-                </button>
               )}
             </div>
 
@@ -423,7 +344,7 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
                 type="text"
                 value={keterangan}
                 onChange={(e) => setKeterangan(e.target.value)}
-                placeholder="Contoh: Kondisi KBM tertib, 1 guru izin tugas dinas digantikan piket..."
+                placeholder="Contoh: Kondisi KBM tertib, seluruh kelas terlaksana..."
                 className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-sky-500 bg-white"
               />
             </div>
