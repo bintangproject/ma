@@ -520,7 +520,7 @@ function doGet(e) {
       }
     }
 
-    // 4. Baca Jadwal Guru Piket Mingguan
+    // 4. Baca Jadwal Guru Piket Mingguan (Mendukung jumlah petugas dinamis: 4, 5, 6 guru atau lebih)
     const jadwalPiket = {};
     HARI_LIST.forEach(function(hari) {
       jadwalPiket[hari] = [];
@@ -531,12 +531,14 @@ function doGet(e) {
       for (let i = 1; i < jpData.length; i++) {
         const h = String(jpData[i][0] || '').trim();
         if (h) {
-          jadwalPiket[h] = [
-            String(jpData[i][1] || '').trim(),
-            String(jpData[i][2] || '').trim(),
-            String(jpData[i][3] || '').trim(),
-            String(jpData[i][4] || '').trim()
-          ].filter(Boolean);
+          const petugasRow = [];
+          for (let col = 1; col < jpData[i].length; col++) {
+            const namaPetugas = String(jpData[i][col] || '').trim();
+            if (namaPetugas) {
+              petugasRow.push(namaPetugas);
+            }
+          }
+          jadwalPiket[h] = petugasRow;
         }
       }
     }
@@ -585,25 +587,36 @@ function doGet(e) {
       }
     }
 
-    // 7. Baca Sheet Guru Piket Harian
+    // 7. Baca Sheet Guru Piket Harian (Dinamis: 4, 5, 6 guru atau lebih)
     const guruPiket = [];
     const piketSheet = ss.getSheetByName(SHEET_PIKET);
     if (piketSheet) {
       const pData = piketSheet.getDataRange().getValues();
-      for (let i = 1; i < pData.length; i++) {
-        const row = pData[i];
-        if (!row[1]) continue;
-        guruPiket.push({
-          id: String(row[0] || ('pkt-' + i)),
-          tanggal: formatDateString(row[1]),
-          hari: String(row[2] || ''),
-          piket1: String(row[3] || ''),
-          piket2: String(row[4] || ''),
-          piket3: String(row[5] || ''),
-          piket4: String(row[6] || ''),
-          keterangan: String(row[7] || ''),
-          waktuInput: String(row[8] || '')
-        });
+      if (pData.length > 1) {
+        const pHeaders = pData[0].map(function(h) { return String(h || '').trim().toLowerCase(); });
+        for (let i = 1; i < pData.length; i++) {
+          const row = pData[i];
+          if (!row[1]) continue;
+          const pObj = {
+            id: String(row[0] || ('pkt-' + i)),
+            tanggal: formatDateString(row[1]),
+            hari: String(row[2] || ''),
+          };
+          let pIdx = 1;
+          for (let col = 3; col < row.length; col++) {
+            const hName = pHeaders[col] || '';
+            const val = String(row[col] || '').trim();
+            if (hName.indexOf('keterangan') !== -1) {
+              pObj.keterangan = val;
+            } else if (hName.indexOf('waktu') !== -1) {
+              pObj.waktuInput = val;
+            } else if (val) {
+              pObj['piket' + pIdx] = val;
+              pIdx++;
+            }
+          }
+          guruPiket.push(pObj);
+        }
       }
     }
 
@@ -792,20 +805,50 @@ function handleAction(ss, postData) {
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
-  // AKSI 3: Simpan Guru Piket Harian
+  // AKSI 3: Simpan Guru Piket Harian (Dinamis: 4, 5, 6 guru atau lebih)
   if (postData.action === "saveGuruPiket") {
     let pSheet = ss.getSheetByName(SHEET_PIKET);
-    if (!pSheet) {
-      pSheet = ss.insertSheet(SHEET_PIKET);
-      pSheet.appendRow(["ID", "Tanggal", "Hari", "Piket 1", "Piket 2", "Piket 3", "Piket 4", "Keterangan", "Waktu Input"]);
-      pSheet.getRange("A1:I1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
-    }
-
     let pkt = postData.piket;
     if (typeof pkt === "string") {
       try { pkt = JSON.parse(pkt); } catch (e) { pkt = {}; }
     }
     const targetDate = formatDateString(pkt.tanggal);
+
+    // Kumpulkan daftar nama piket dinamis
+    const piketNames = [];
+    if (Array.isArray(pkt.petugasList) && pkt.petugasList.length > 0) {
+      for (let p = 0; p < pkt.petugasList.length; p++) {
+        if (pkt.petugasList[p].nama) piketNames.push(String(pkt.petugasList[p].nama).trim());
+      }
+    } else {
+      let pI = 1;
+      while (pkt['piket' + pI]) {
+        piketNames.push(String(pkt['piket' + pI]).trim());
+        pI++;
+      }
+    }
+
+    if (!pSheet) {
+      pSheet = ss.insertSheet(SHEET_PIKET);
+      const newHeader = ["ID", "Tanggal", "Hari"];
+      const colCount = Math.max(piketNames.length, 6);
+      for (let nh = 1; nh <= colCount; nh++) {
+        newHeader.push("Piket " + nh);
+      }
+      newHeader.push("Keterangan", "Waktu Input");
+      pSheet.appendRow(newHeader);
+      pSheet.getRange(1, 1, 1, newHeader.length).setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+    }
+
+    // Pastikan kolom sheet cukup
+    const headerRow = pSheet.getRange(1, 1, 1, Math.max(pSheet.getLastColumn(), 9)).getValues()[0];
+    let ketColIdx = -1;
+    let waktuColIdx = -1;
+    for (let c = 0; c < headerRow.length; c++) {
+      const hTitle = String(headerRow[c] || '').toLowerCase();
+      if (hTitle.indexOf('keterangan') !== -1) ketColIdx = c;
+      if (hTitle.indexOf('waktu') !== -1) waktuColIdx = c;
+    }
 
     const data = pSheet.getDataRange().getValues();
     const kept = [];
@@ -816,17 +859,26 @@ function handleAction(ss, postData) {
       }
     }
 
-    kept.push([
-      pkt.id || ('pkt-' + targetDate),
-      targetDate,
-      pkt.hari || '',
-      pkt.piket1 || '',
-      pkt.piket2 || '',
-      pkt.piket3 || '',
-      pkt.piket4 || '',
-      pkt.keterangan || '',
-      timestamp
-    ]);
+    const totalCols = Math.max(headerRow.length, 3 + piketNames.length + 2);
+    const newRow = new Array(totalCols).fill('');
+    newRow[0] = pkt.id || ('pkt-' + targetDate);
+    newRow[1] = targetDate;
+    newRow[2] = pkt.hari || '';
+    for (let pn = 0; pn < piketNames.length; pn++) {
+      newRow[3 + pn] = piketNames[pn];
+    }
+    if (ketColIdx > 2) {
+      newRow[ketColIdx] = pkt.keterangan || '';
+    } else {
+      newRow[3 + piketNames.length] = pkt.keterangan || '';
+    }
+    if (waktuColIdx > 2) {
+      newRow[waktuColIdx] = timestamp;
+    } else {
+      newRow[3 + piketNames.length + 1] = timestamp;
+    }
+
+    kept.push(newRow);
 
     if (pSheet.getLastRow() > 1) {
       pSheet.getRange(2, 1, pSheet.getLastRow() - 1, pSheet.getLastColumn()).clearContent();
@@ -835,12 +887,12 @@ function handleAction(ss, postData) {
       if (pSheet.getMaxRows() < (kept.length + 5)) {
         pSheet.insertRowsAfter(pSheet.getMaxRows(), 20);
       }
-      pSheet.getRange(2, 1, kept.length, 9).setValues(kept);
+      pSheet.getRange(2, 1, kept.length, totalCols).setValues(kept);
     }
 
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
-      message: "Berhasil menyimpan data Guru Piket tanggal " + targetDate
+      message: "Berhasil menyimpan data " + piketNames.length + " Guru Piket tanggal " + targetDate
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -1092,25 +1144,25 @@ function setupInitialDatabase() {
     mapelSheet.getRange(2, 1, defaultSubjects.length, 2).setValues(defaultSubjects);
   }
 
-  // 4. Sheet Jadwal Piket Mingguan (Diatur langsung dari Spreadsheet)
+  // 4. Sheet Jadwal Piket Mingguan (Diatur langsung dari Spreadsheet, fleksibel 4, 5, 6 guru atau lebih)
   let jpSheet = ss.getSheetByName(SHEET_JADWAL_PIKET);
   if (!jpSheet) {
     jpSheet = ss.insertSheet(SHEET_JADWAL_PIKET);
   }
   if (jpSheet.getLastRow() < 2) {
     jpSheet.clear();
-    jpSheet.appendRow(["HARI", "PETUGAS 1", "PETUGAS 2", "PETUGAS 3", "PETUGAS 4"]);
-    jpSheet.getRange("A1:E1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+    jpSheet.appendRow(["HARI", "PETUGAS 1", "PETUGAS 2", "PETUGAS 3", "PETUGAS 4", "PETUGAS 5", "PETUGAS 6"]);
+    jpSheet.getRange("A1:G1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
     
     const defaultJadwalPiket = [
-      ["Sabtu", "Ust. Edi Amin, M.Hum.", "Ust. Sholehuddin M.Pd", "Ustd. Khusnul Khotimah, SE", "Ust. Moh Lutfi, S.Pd."],
-      ["Ahad", "Ust. Muh. Fathan Zamani, M.A.", "Ust. Mashudi, M.Pd.I.", "Ustd. Meri, S.Pd.", "Ust. Aan Farisi, SS."],
-      ["Senin", "Ust. H. Djamauddin, M.Pd.I.", "Ust. Habibi, M.Pd.I.", "Ustd. Lilik Burhanatus S., SS.", "Ust. Taufik Rizal, S.Kom."],
-      ["Selasa", "Ust. Dwi Evayanto, S.Kom", "Ust. Abdul Bari, S.Pd.", "Ustd. Siti Umil Mukminah, S.Si.", "Ny. Maghfiroh, S.Pd.I."],
-      ["Rabu", "Ust. Moh. Sodik, S.Pd.", "Ust. H. Zaidi, M.H.I., M.Pd.I.", "Ustd. Dra. Diah Eviati", "Ustd. Ummi Salamah, S.Pd."],
-      ["Kamis", "Nurrahman, S.Kom.", "Ust. M. Fathur Rozak, S.Pd.", "Ustd. Sriyati, S.Pd.I.", "Ustd. Fini Novita Sari, S.Pd."]
+      ["Sabtu", "Ust. Edi Amin, M.Hum.", "Ust. Sholehuddin M.Pd", "Ustd. Khusnul Khotimah, SE", "Ust. Moh Lutfi, S.Pd.", "Ust. Abdul Aziz Zain, S.Pd.", ""],
+      ["Ahad", "Ust. Muh. Fathan Zamani, M.A.", "Ust. Mashudi, M.Pd.I.", "Ustd. Meri, S.Pd.", "Ust. Aan Farisi, SS.", "Gus. Ahmad Habibi, Lc", ""],
+      ["Senin", "Ust. Nurrahman, S.Kom.", "Ust. H. Djamauddin, M.Pd.I.", "Ust. Habibi, M.Pd.I.", "Ustd. Lilik Burhanatus S., SS.", "Ust. Taufik Rizal, S.Kom.", ""],
+      ["Selasa", "Ustd. Lilik Burhanatus S., S.S.", "Ust. Abdul Aziz Zain, S.Pd.", "Ust. Habibi, M.Pd.I.", "Ustd. Sriyati, S.Pd.I.", "Ust. Dwi Evayanto, S.Kom", "Ust. Abdul Bari, S.Pd."],
+      ["Rabu", "Ust. Moh. Sodik, S.Pd.", "Ust. H. Zaidi, M.H.I., M.Pd.I.", "Ustd. Dra. Diah Eviati", "Ustd. Ummi Salamah, S.Pd.", "Badrus Salam, S.Pd.I", ""],
+      ["Kamis", "Nurrahman, S.Kom.", "Ust. M. Fathur Rozak, S.Pd.", "Ustd. Sriyati, S.Pd.I.", "Ustd. Fini Novita Sari, S.Pd.", "Husnul Hotim, S.Or", ""]
     ];
-    jpSheet.getRange(2, 1, defaultJadwalPiket.length, 5).setValues(defaultJadwalPiket);
+    jpSheet.getRange(2, 1, defaultJadwalPiket.length, 7).setValues(defaultJadwalPiket);
   }
 
   // 5. Sheet Hari Jadwal
@@ -1156,9 +1208,9 @@ function setupInitialDatabase() {
   if (!piketSheet) {
     piketSheet = ss.insertSheet(SHEET_PIKET);
     piketSheet.appendRow([
-      "ID", "Tanggal", "Hari", "Piket 1", "Piket 2", "Piket 3", "Piket 4", "Keterangan", "Waktu Input"
+      "ID", "Tanggal", "Hari", "Piket 1", "Piket 2", "Piket 3", "Piket 4", "Piket 5", "Piket 6", "Keterangan", "Waktu Input"
     ]);
-    piketSheet.getRange("A1:I1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+    piketSheet.getRange("A1:K1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
   }
 
   // 8. Sheet Rekap Apel Pagi

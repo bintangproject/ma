@@ -40,10 +40,17 @@ import {
   DEFAULT_MASTER_GURU, 
   DEFAULT_MASTER_MAPEL, 
   DEFAULT_WEEKLY_SCHEDULE, 
+  DEFAULT_JADWAL_PIKET,
   getInitialAttendanceRecords 
 } from './data/defaultData';
 import { exportToCsv } from './utils/exportUtils';
-import { calculateTeacherSummaries, formatIndonesianDate, getMadarMonthlyRange, formatLocalISODate } from './utils/formatters';
+import { 
+  calculateTeacherSummaries, 
+  formatIndonesianDate, 
+  getMadarMonthlyRange, 
+  formatLocalISODate,
+  getIndonesianDayName
+} from './utils/formatters';
 import { 
   fetchFromGoogleSheets, 
   postBulkDayAttendance, 
@@ -129,6 +136,10 @@ export default function App() {
     selectedStatus: '',
   });
 
+  const todayDayName = getIndonesianDayName(todayStr);
+  const todayPiketScheduled = jadwalPiket[todayDayName] || DEFAULT_JADWAL_PIKET[todayDayName] || [];
+  const todayPiketCount = todayPiketScheduled.length;
+
   // 3. Modals State
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isPiketModalOpen, setIsPiketModalOpen] = useState(false);
@@ -195,11 +206,14 @@ export default function App() {
 
     const intervalMs = config.autoSyncIntervalMinutes * 60 * 1000;
     const interval = setInterval(() => {
-      handleSync(true);
+      // Jeda auto-sync di latar belakang jika pengguna sedang aktif mengisi form/modal
+      if (!isBulkModalOpen && !isPiketModalOpen && !isApelModalOpen && !isSettingsModalOpen) {
+        handleSync(true);
+      }
     }, intervalMs);
 
     return () => clearInterval(interval);
-  }, [config.gasUrl, config.autoSyncIntervalMinutes]);
+  }, [config.gasUrl, config.autoSyncIntervalMinutes, isBulkModalOpen, isPiketModalOpen, isApelModalOpen, isSettingsModalOpen]);
 
   // 4. Synchronization Handler
   const handleSync = async (silent = false) => {
@@ -339,13 +353,45 @@ export default function App() {
     setIsSyncing(true);
     try {
       const res = await fetchFromGoogleSheets(config.gasUrl);
-      if (res.success && res.data?.users && res.data.users.length > 0) {
-        setUsers(res.data.users);
-        saveStoredUsers(res.data.users);
+      if (res.success && res.data) {
+        if (res.data.users && res.data.users.length > 0) {
+          setUsers(res.data.users);
+          saveStoredUsers(res.data.users);
+        }
+        if (res.data.jadwalPiket && Object.keys(res.data.jadwalPiket).length > 0) {
+          setJadwalPiket(res.data.jadwalPiket);
+          saveStoredJadwalPiket(res.data.jadwalPiket);
+        }
+        if (res.data.teachers && res.data.teachers.length > 0) {
+          setTeachers(res.data.teachers);
+          saveStoredTeachers(res.data.teachers);
+        }
+        if (res.data.subjects && res.data.subjects.length > 0) {
+          setSubjects(res.data.subjects);
+          saveStoredSubjects(res.data.subjects);
+        }
+        if (res.data.schedules && Object.keys(res.data.schedules).length > 0) {
+          setSchedules(res.data.schedules);
+          saveStoredSchedules(res.data.schedules);
+        }
+        if (res.data.attendance) {
+          setRecords(res.data.attendance);
+          saveStoredRecords(res.data.attendance);
+        }
+        if (res.data.guruPiket && res.data.guruPiket.length > 0) {
+          setGuruPiketHistory(res.data.guruPiket);
+          saveStoredGuruPiket(res.data.guruPiket);
+        }
+        if (res.data.rekapApel && res.data.rekapApel.length > 0) {
+          setRekapApelHistory(res.data.rekapApel);
+          saveStoredRekapApel(res.data.rekapApel);
+        }
+
+        const userCount = res.data.users?.length || 0;
         return {
           success: true,
-          message: `Berhasil menyinkronkan ${res.data.users.length} data akun pengguna dari Spreadsheet!`,
-          count: res.data.users.length,
+          message: `Berhasil menyinkronkan ${userCount} data akun pengguna dari Spreadsheet!`,
+          count: userCount,
         };
       }
       return {
@@ -631,6 +677,7 @@ export default function App() {
         onSync={() => handleSync(false)}
         currentUser={currentUser}
         onLogout={handleLogout}
+        todayPiketCount={todayPiketCount}
       />
 
       {/* Main Wrapper with Desktop Sidebar Offset */}
@@ -758,7 +805,9 @@ export default function App() {
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-800 group-hover:text-sky-900 truncate">Guru Piket</div>
-                <div className="text-[10px] text-slate-400 truncate">4 Petugas harian</div>
+                <div className="text-[10px] text-slate-400 truncate">
+                  {todayPiketCount > 0 ? `${todayPiketCount} Petugas harian` : 'Petugas harian'}
+                </div>
               </div>
             </button>
 

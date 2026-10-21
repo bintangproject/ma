@@ -222,6 +222,10 @@ export const GasGuideModal: React.FC<GasGuideModalProps> = ({ isOpen, onClose })
                   🔑 <strong>Manajemen Akun Login Pengguna (Sheet 'Pengguna'):</strong><br />
                   Data login (Username, Password, Nama Lengkap, dan Jabatan seperti Waka Kurikulum, Kepala Madrasah, Guru Piket) diambil langsung dari sheet <strong>Pengguna</strong>. Anda dapat menambah atau mengubah username & password langsung di Google Spreadsheet Anda kapan saja!
                 </li>
+                <li className="font-semibold text-sky-950 bg-sky-50 p-2.5 rounded-lg border border-sky-200 mt-1">
+                  🛡️ <strong>Jadwal Guru Piket Fleksibel (Sheet 'Jadwal_Piket'):</strong><br />
+                  Kolom petugas piket di sheet <strong>Jadwal_Piket</strong> sekarang sepenuhnya fleksibel mendukung berapa pun jumlah guru setiap harinya (4, 5, 6 guru atau lebih: Kolom HARI, PETUGAS 1, PETUGAS 2, PETUGAS 3, PETUGAS 4, PETUGAS 5, PETUGAS 6, dst). Webapp SIRAMA membaca seluruh kolom secara otomatis tanpa terpotong!
+                </li>
                 <li className="font-semibold text-sky-950 bg-sky-100/70 p-2 rounded-lg border border-sky-200 mt-1">
                   ⭐ <strong>Agar Langsung Terbuka Realtime di Semua Perangkat:</strong><br />
                   Taruh URL Web App tersebut langsung di dalam file <code>src/config/appConfig.ts</code> pada variabel <code>SPREADSHEET_GAS_URL</code>, lalu push ke GitHub. Dengan begitu, siapapun yang membuka webapp di HP, laptop, atau akun manapun akan langsung tersambung secara otomatis!

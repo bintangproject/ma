@@ -35,20 +35,18 @@ export const DailyScheduleShareModal: React.FC<DailyScheduleShareModalProps> = (
     if (existing) return existing;
     const defaultList = jadwalPiket[selectedHari] || DEFAULT_JADWAL_PIKET[selectedHari] || [];
     if (defaultList.length === 0) return null;
-    return {
+    const record: any = {
       id: `pkt-default-${selectedDate}`,
       tanggal: selectedDate,
       hari: selectedHari,
-      piket1: defaultList[0] || '',
-      status1: 'HADIR' as const,
-      piket2: defaultList[1] || '',
-      status2: 'HADIR' as const,
-      piket3: defaultList[2] || '',
-      status3: 'HADIR' as const,
-      piket4: defaultList[3] || '',
-      status4: 'HADIR' as const,
       keterangan: '',
     };
+    defaultList.forEach((name, idx) => {
+      record[`piket${idx + 1}`] = name;
+      record[`status${idx + 1}`] = 'HADIR';
+    });
+    record.petugasList = defaultList.map(name => ({ nama: name, status: 'HADIR' as const }));
+    return record as GuruPiketRecord;
   }, [guruPiketHistory, selectedDate, selectedHari, jadwalPiket]);
 
   const messageText = generateWhatsAppDailyScheduleMessage(selectedHari, selectedDate, schedules, config, piketToday);

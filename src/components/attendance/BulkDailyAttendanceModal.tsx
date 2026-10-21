@@ -67,6 +67,29 @@ export const BulkDailyAttendanceModal: React.FC<BulkDailyAttendanceModalProps> =
   const [customMapel, setCustomMapel] = useState(subjects[0]?.nama || "AL-QUR'AN HADITS");
   const [customGuru, setCustomGuru] = useState(teachers[0]?.nama || '');
 
+  // Draft saving helpers for local reliability
+  const draftKey = `sirama_draft_kbm_${selectedDate}`;
+
+  const saveDraft = (currentItems: DayAttendanceItem[]) => {
+    try {
+      if (currentItems.length > 0) {
+        localStorage.setItem(`sirama_draft_kbm_${selectedDate}`, JSON.stringify(currentItems));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(`sirama_draft_kbm_${selectedDate}`);
+    } catch {
+      // ignore
+    }
+  };
+
+  const [confirmResetAll, setConfirmResetAll] = useState(false);
+
   // When date changes, update detected day and initialize rows
   useEffect(() => {
     if (!isOpen) return;
@@ -75,7 +98,21 @@ export const BulkDailyAttendanceModal: React.FC<BulkDailyAttendanceModalProps> =
     const dayToUse = DAFTAR_HARI.includes(detectedDay) ? detectedDay : 'Sabtu';
     setSelectedHari(dayToUse);
 
-    // Check if records already exist for this date
+    // 1. Cek apakah ada draft lokal yang belum disimpan agar data tidak hilang saat beralih aplikasi
+    try {
+      const savedDraft = localStorage.getItem(`sirama_draft_kbm_${selectedDate}`);
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setItems(parsed);
+          return;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Check if records already exist for this date
     const forThisDate = existingRecords.filter(r => r.tanggal === selectedDate);
     if (forThisDate.length > 0) {
       // Load saved state
@@ -118,21 +155,39 @@ export const BulkDailyAttendanceModal: React.FC<BulkDailyAttendanceModalProps> =
       keterangan: '',
     }));
     setItems(initialized);
+    saveDraft(initialized);
   };
 
-  // Set all to Hadir
+  // Set all to Hadir with safety confirmation
   const handleSetAllHadir = () => {
-    setItems(prev => prev.map(item => ({ ...item, status: 'HADIR' })));
+    const hasNonHadir = items.some(it => it.status !== 'HADIR');
+    if (hasNonHadir && !confirmResetAll) {
+      setConfirmResetAll(true);
+      setTimeout(() => setConfirmResetAll(false), 4000);
+      return;
+    }
+    setConfirmResetAll(false);
+    const updated = items.map(item => ({ ...item, status: 'HADIR' as AttendanceStatus }));
+    setItems(updated);
+    saveDraft(updated);
   };
 
   // Update single item status
   const handleUpdateStatus = (id: string, status: AttendanceStatus) => {
-    setItems(prev => prev.map(item => item.id === id ? { ...item, status } : item));
+    setItems(prev => {
+      const next = prev.map(item => item.id === id ? { ...item, status } : item);
+      saveDraft(next);
+      return next;
+    });
   };
 
   // Update single item keterangan
   const handleUpdateKeterangan = (id: string, keterangan: string) => {
-    setItems(prev => prev.map(item => item.id === id ? { ...item, keterangan } : item));
+    setItems(prev => {
+      const next = prev.map(item => item.id === id ? { ...item, keterangan } : item);
+      saveDraft(next);
+      return next;
+    });
   };
 
   // Add custom session
@@ -158,6 +213,8 @@ export const BulkDailyAttendanceModal: React.FC<BulkDailyAttendanceModalProps> =
       alert('Tidak ada data kehadiran yang akan disimpan.');
       return;
     }
+
+    clearDraft();
 
     const recordsToSave: AttendanceRecord[] = items.map((it, idx) => ({
       id: it.id.startsWith('draft-') ? `rec-${selectedDate}-${idx + 1}` : it.id,
@@ -195,6 +252,7 @@ export const BulkDailyAttendanceModal: React.FC<BulkDailyAttendanceModalProps> =
       subtitle="Semua jadwal otomatis terset HADIR. Ubah status hanya bagi guru yang berhalangan."
       icon={<CheckCheck size={20} className="text-sky-600" />}
       maxWidth="5xl"
+      preventBackdropClose={true}
     >
       <div className="space-y-4">
         
@@ -235,11 +293,15 @@ export const BulkDailyAttendanceModal: React.FC<BulkDailyAttendanceModalProps> =
             <button
               type="button"
               onClick={handleSetAllHadir}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-semibold rounded-lg transition-colors shadow-2xs"
+              className={`inline-flex items-center gap-1 px-3 py-1.5 font-semibold rounded-lg transition-colors shadow-2xs ${
+                confirmResetAll
+                  ? 'bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300'
+                  : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'
+              }`}
               title="Reset seluruh sesi menjadi Hadir"
             >
               <Sparkles size={13} />
-              <span>Set Semua Hadir</span>
+              <span>{confirmResetAll ? '⚠️ Klik lagi: Reset Semua?' : 'Set Semua Hadir'}</span>
             </button>
           </div>
 

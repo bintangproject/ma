@@ -146,14 +146,29 @@ export function generateWhatsAppDailyScheduleMessage(
   let text = `📚 *JADWAL KBM PENGAJAR ${institutionName}*\n`;
   text += `🗓️ *Hari ${hari}, ${formatIndonesianDate(tanggalStr, false)}*\n`;
 
-  // Sisipkan Guru Piket jika ada
-  if (piketToday && (piketToday.piket1 || piketToday.piket2 || piketToday.piket3 || piketToday.piket4)) {
-    text += `\n🛡️ *GURU PIKET HARI INI:*\n`;
-    const piketItems = [piketToday.piket1, piketToday.piket2, piketToday.piket3, piketToday.piket4].filter(Boolean);
+  // Sisipkan Guru Piket jika ada (mendukung berapapun jumlah petugas: 4, 5, 6 atau lebih)
+  const piketItems: string[] = [];
+  if (piketToday) {
+    if (Array.isArray(piketToday.petugasList) && piketToday.petugasList.length > 0) {
+      piketToday.petugasList.forEach(p => {
+        if (p.nama) piketItems.push(p.nama);
+      });
+    } else {
+      let pIdx = 1;
+      while ((piketToday as any)[`piket${pIdx}`]) {
+        const val = (piketToday as any)[`piket${pIdx}`];
+        if (val) piketItems.push(val);
+        pIdx++;
+      }
+    }
+  }
+
+  if (piketItems.length > 0) {
+    text += `\n🛡️ *GURU PIKET HARI INI (${piketItems.length} Petugas):*\n`;
     piketItems.forEach((p, idx) => {
       text += `${idx + 1}. ${p}\n`;
     });
-    if (piketToday.keterangan) {
+    if (piketToday?.keterangan) {
       text += `   _(Catatan: ${piketToday.keterangan})_\n`;
     }
   }

@@ -9,6 +9,7 @@ interface ModalProps {
   icon?: React.ReactNode;
   children: React.ReactNode;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl';
+  preventBackdropClose?: boolean;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -19,6 +20,7 @@ export const Modal: React.FC<ModalProps> = ({
   icon,
   children,
   maxWidth = '2xl',
+  preventBackdropClose = false,
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -52,7 +54,7 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Backdrop (clean solid dim, no blur filter) */}
       <div 
         className="fixed inset-0 bg-slate-900/60 transition-opacity"
-        onClick={onClose}
+        onClick={preventBackdropClose ? undefined : onClose}
         aria-hidden="true"
       />
 

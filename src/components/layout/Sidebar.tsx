@@ -53,6 +53,7 @@ interface SidebarProps {
   onSync: () => void;
   currentUser?: AppUser | null;
   onLogout?: () => void;
+  todayPiketCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -67,6 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSync,
   currentUser,
   onLogout,
+  todayPiketCount,
 }) => {
   return (
     <>
@@ -203,7 +205,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span>Guru Piket Harian</span>
                 </div>
                 <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-sky-100 text-sky-800">
-                  4 Guru
+                  {todayPiketCount && todayPiketCount > 0 ? `${todayPiketCount} Guru` : 'Harian'}
                 </span>
               </button>
 

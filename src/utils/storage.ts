@@ -203,7 +203,15 @@ export function loadStoredJadwalPiket(): Record<string, string[]> {
     const raw = localStorage.getItem(STORAGE_KEYS.JADWAL_PIKET);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') return parsed;
+      if (parsed && typeof parsed === 'object') {
+        const result: Record<string, string[]> = { ...DEFAULT_JADWAL_PIKET };
+        Object.keys(parsed).forEach(day => {
+          if (Array.isArray(parsed[day]) && parsed[day].length > 0) {
+            result[day] = parsed[day];
+          }
+        });
+        return result;
+      }
     }
   } catch (e) {
     console.error('Failed to load jadwal piket', e);

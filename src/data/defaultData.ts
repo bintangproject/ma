@@ -35,14 +35,14 @@ export const DEFAULT_INSTITUTION_CONFIG: InstitutionConfig = {
   LABEL_KURANG: 'Kurang (Perlu Pembinaan)',
 };
 
-// Jadwal 4 Guru Piket harian dari Spreadsheet
+// Jadwal Guru Piket harian dari Spreadsheet (Sesuai sheet Jadwal_Piket: 5 Petugas per hari)
 export const DEFAULT_JADWAL_PIKET: Record<string, string[]> = {
-  'Sabtu': ['Ust. Edi Amin, M.Hum.', 'Ust. Sholehuddin M.Pd', 'Ustd. Khusnul Khotimah, SE', 'Ust. Moh Lutfi, S.Pd.'],
-  'Ahad': ['Ust. Muh. Fathan Zamani, M.A.', 'Ust. Mashudi, M.Pd.I.', 'Ustd. Meri, S.Pd.', 'Ust. Aan Farisi, SS.'],
-  'Senin': ['Ust. H. Djamauddin, M.Pd.I.', 'Ust. Habibi, M.Pd.I.', 'Ustd. Lilik Burhanatus S., SS.', 'Ust. Taufik Rizal, S.Kom.'],
-  'Selasa': ['Ust. Dwi Evayanto, S.Kom', 'Ust. Abdul Bari, S.Pd.', 'Ustd. Siti Umil Mukminah, S.Si.', 'Ny. Maghfiroh, S.Pd.I.'],
-  'Rabu': ['Ust. Moh. Sodik, S.Pd.', 'Ust. H. Zaidi, M.H.I., M.Pd.I.', 'Ustd. Dra. Diah Eviati', 'Ustd. Ummi Salamah, S.Pd.'],
-  'Kamis': ['Nurrahman, S.Kom.', 'Ust. M. Fathur Rozak, S.Pd.', 'Ustd. Sriyati, S.Pd.I.', 'Ustd. Fini Novita Sari, S.Pd.'],
+  'Sabtu': ['Ust. Dwi Evayanto, S.Kom.', 'Ust. Aan Farisi, S.S.', 'Ust. Abdul Bari, S.Pd.', 'Ust. Ahmad Taufik, S.Pd.I.', 'Ust. Abdul Aziz Zain, S.Pd.'],
+  'Ahad': ['Ustd. Umi Maghfiroh, S.Pd.', 'Ust. Abdul Bari, S.Pd.', 'Ust. Taufik Rizal, S.Kom.', 'Ust. Abdul Aziz Zain, S.Pd.', 'Ust. Ahmad Taufik, S.Pd.I.'],
+  'Senin': ['Ust. Nurrahman, S.Kom.', 'Ust. Moh Lutfi, S.Pd.', 'Ust. Habibi, M.Pd.I.', 'Ust. Abdul Bari, S.Pd.', 'Ustd. Khusnul Khotimah, S.E.'],
+  'Selasa': ['Ustd. Lilik Burhanatus S., S.S.', 'Ust. Abdul Aziz Zain, S.Pd.', 'Ust. Habibi, M.Pd.I.', 'Ustd. Sriyati, S.Pd.I.', 'Ust. Ahmad Taufik, S.Pd.I.'],
+  'Rabu': ['Ustd. Fini Novita Sari, S.Pd.', 'Ust. Moh Lutfi, S.Pd.', 'Ustd. Khusnul Khotimah, S.E.', 'Ust. Ahmad Taufik, S.Pd.I.', 'Ust. Abdul Aziz Zain, S.Pd.'],
+  'Kamis': ['Ustd. Lailatul Maghfiroh, S.Pd.', 'Ustd. Sriyati, S.Pd.I.', 'Ust. Moh Lutfi, S.Pd.', 'Ustd. Arum Sriwindari, S.Pd.', 'Ust. Taufik Rizal, S.Kom.'],
 };
 
 export const DEFAULT_STRUKTURAL_MADAR = [
@@ -316,6 +316,13 @@ export function getInitialAttendanceRecords(): AttendanceRecord[] {
 }
 
 export const DEFAULT_APP_USERS: AppUser[] = [
+  {
+    username: 'bintang',
+    password: '123',
+    nama: 'Bintang Ramadhan',
+    role: 'Admin/Staff Kurikulum',
+    keterangan: 'Staff Kurikulum Madrasah',
+  },
   {
     username: 'evan',
     password: '123',

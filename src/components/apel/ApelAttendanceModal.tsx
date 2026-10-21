@@ -176,6 +176,7 @@ export const ApelAttendanceModal: React.FC<ApelAttendanceModalProps> = ({
       subtitle="Presensi apel pagi untuk Struktural dan KBM 1 hari ini"
       icon={<Award size={20} className="text-amber-600" />}
       maxWidth="3xl"
+      preventBackdropClose={true}
     >
       <div className="space-y-4">
         

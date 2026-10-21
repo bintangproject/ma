@@ -49,7 +49,7 @@ export interface ScheduleItem {
 
 export type DayScheduleMap = Record<string, ScheduleItem[]>;
 
-// Jadwal 4 Guru Piket harian yang disetting di Spreadsheet
+// Jadwal Guru Piket harian yang disetting di Spreadsheet (fleksibel: 4, 5, 6 guru atau lebih)
 export type JadwalPiketDayMap = Record<string, string[]>;
 
 export interface InstitutionConfig {
@@ -92,14 +92,24 @@ export interface GuruPiketRecord {
   id: string;
   tanggal: string; // YYYY-MM-DD
   hari: string;
-  piket1: string;
+  piket1?: string;
   status1?: PiketStatus;
-  piket2: string;
+  piket2?: string;
   status2?: PiketStatus;
-  piket3: string;
+  piket3?: string;
   status3?: PiketStatus;
-  piket4: string;
+  piket4?: string;
   status4?: PiketStatus;
+  piket5?: string;
+  status5?: PiketStatus;
+  piket6?: string;
+  status6?: PiketStatus;
+  piket7?: string;
+  status7?: PiketStatus;
+  piket8?: string;
+  status8?: PiketStatus;
+  petugasList?: { nama: string; status: PiketStatus }[];
+  [key: string]: any;
   keterangan?: string;
   waktuInput?: string;
 }

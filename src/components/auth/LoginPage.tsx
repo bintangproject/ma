@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { InstitutionConfig, AppUser } from '../../types/attendance';
 import { MadarLogo } from '../common/MadarLogo';
 import { 
@@ -35,7 +35,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [syncNotice, setSyncNotice] = useState<{ success: boolean; message: string } | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Otomatis sinkronkan akun dari Spreadsheet saat halaman login dibuka di perangkat manapun
+  useEffect(() => {
+    onSyncUsers();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
@@ -49,12 +54,28 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
     setIsLoading(true);
 
-    setTimeout(() => {
-      // Find matching user from spreadsheet users list
-      // Matching is case-insensitive for username
-      const matchedUser = users.find(
+    try {
+      // 1. Cek dari daftar akun yang ada saat ini
+      let matchedUser = users.find(
         (u) => u.username.trim().toLowerCase() === cleanUsername
       );
+
+      // 2. Jika belum ditemukan di perangkat ini (misal akun baru di Spreadsheet atau perangkat baru),
+      // otomatis tarik data terbaru dari Google Spreadsheet secara realtime!
+      if (!matchedUser) {
+        await onSyncUsers();
+        try {
+          const raw = localStorage.getItem('madar_sirama_users_v1');
+          if (raw) {
+            const freshUsers: AppUser[] = JSON.parse(raw);
+            matchedUser = freshUsers.find(
+              (u) => u.username.trim().toLowerCase() === cleanUsername
+            );
+          }
+        } catch {
+          // ignore
+        }
+      }
 
       if (!matchedUser) {
         setErrorMessage(
@@ -75,7 +96,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       // Login success
       setIsLoading(false);
       onLogin(matchedUser);
-    }, 250);
+    } catch {
+      setIsLoading(false);
+      setErrorMessage('Terjadi kendala saat memvalidasi akun. Silakan coba lagi.');
+    }
   };
 
   const handleTriggerSync = async () => {
