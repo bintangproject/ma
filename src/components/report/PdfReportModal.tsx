@@ -1,13 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { Modal } from '../common/Modal';
-import { AttendanceRecord, InstitutionConfig, FilterState } from '../../types/attendance';
+import { AttendanceRecord, InstitutionConfig, FilterState, MasterGuru } from '../../types/attendance';
 import { MadarLogo, parseDirectImageUrl, getAlternateRawUrl } from '../common/MadarLogo';
 import { 
   formatIndonesianDate, 
   formatIndonesianShortDate, 
   calculateSummary, 
   calculateTeacherSummaries,
-  calculateTeacherSummariesByClass,
   STATUS_CONFIG 
 } from '../../utils/formatters';
 import { Printer, Download, RefreshCw, FileText, Image as ImageIcon } from 'lucide-react';
@@ -23,6 +22,7 @@ interface PdfReportModalProps {
   config: InstitutionConfig;
   filterState: FilterState;
   onChangeFilterState: (newFilter: FilterState) => void;
+  teachers?: MasterGuru[];
 }
 
 export const PdfReportModal: React.FC<PdfReportModalProps> = ({
@@ -32,6 +32,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   config,
   filterState,
   onChangeFilterState,
+  teachers,
 }) => {
   const [reportType, setReportType] = useState<'summary' | 'detailed' | 'berita_acara'>('summary');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -47,6 +48,22 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
   const stats = calculateSummary(currentRecords);
   const teacherSummaries = calculateTeacherSummaries(currentRecords);
+
+  // Per-teacher summaries sorted alphabetically by teacher name
+  const sortedTeacherSummaries = [...teacherSummaries].sort((a, b) => 
+    a.nama.localeCompare(b.nama, 'id')
+  );
+
+  const totalWajibHadir = sortedTeacherSummaries.reduce((acc, t) => acc + t.totalSesi, 0);
+  const totalHadir = sortedTeacherSummaries.reduce((acc, t) => acc + t.hadir, 0);
+  const totalIzin = sortedTeacherSummaries.reduce((acc, t) => acc + t.izin, 0);
+  const totalSakit = sortedTeacherSummaries.reduce((acc, t) => acc + t.sakit, 0);
+  const totalAlpa = sortedTeacherSummaries.reduce((acc, t) => acc + t.alpa, 0);
+  const totalTugasDinas = sortedTeacherSummaries.reduce((acc, t) => acc + t.tugasDinas, 0);
+  const totalKehadiranEfektif = totalHadir + totalTugasDinas;
+  const overallPercentage = totalWajibHadir > 0 
+    ? Math.round((totalKehadiranEfektif / totalWajibHadir) * 100) 
+    : 0;
 
   const periodeText = filterState.startDate === filterState.endDate
     ? formatIndonesianDate(filterState.startDate)
@@ -220,7 +237,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     }
   };
 
-  // 2. Ekspor langsung ke file PDF (.pdf) menggunakan html2canvas & jsPDF agar 100% presisi sesuai preview
+  // 2. Ekspor langsung ke file PDF (.pdf) menggunakan html2canvas & jsPDF standar Kertas F4 (Folio 210 x 330 mm)
   const handleDownloadPdf = async () => {
     if (!printAreaRef.current) return;
     setIsExportingPdf(true);
@@ -228,39 +245,59 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     try {
       const canvas = await renderDocumentToCanvas(printAreaRef.current);
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      
+      // Standar Kertas F4 (Folio): 210 mm x 330 mm
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4',
+        format: [210, 330],
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth(); // 210mm
-      const pdfHeight = pdf.internal.pageSize.getHeight(); // 297mm
+      const pdfWidth = 210;
+      const pdfHeight = 330;
       const margin = 8;
-      const contentWidth = pdfWidth - (margin * 2);
+      const contentWidth = pdfWidth - (margin * 2); // 194 mm
+      const maxTargetHeight = pdfHeight - (margin * 2); // 314 mm
       const contentHeight = (canvas.height * contentWidth) / canvas.width;
 
-      if (contentHeight <= (pdfHeight - margin * 2)) {
-        // Muat pas dalam 1 halaman
-        pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight);
+      if (reportType === 'summary') {
+        // Rekap Per Guru diusahakan rapi dan muat pas dalam 1 lembar F4
+        if (contentHeight <= maxTargetHeight) {
+          pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight);
+        } else {
+          // Skalakan proporsional agar presisi dalam 1 lembar F4 tanpa terpotong
+          const scale = maxTargetHeight / contentHeight;
+          const scaledWidth = contentWidth * scale;
+          const scaledX = margin + (contentWidth - scaledWidth) / 2;
+          pdf.addImage(imgData, 'JPEG', scaledX, margin, scaledWidth, maxTargetHeight);
+        }
       } else {
-        // Multi-halaman A4
-        const pageContentHeight = pdfHeight - (margin * 2);
-        let heightLeft = contentHeight;
-        let position = margin;
+        // Multi-halaman F4 untuk log rinci
+        if (contentHeight <= maxTargetHeight) {
+          pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight);
+        } else {
+          const pageContentHeight = maxTargetHeight;
+          let heightLeft = contentHeight;
+          let position = margin;
 
-        pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
-        heightLeft -= pageContentHeight;
-
-        while (heightLeft > 0) {
-          pdf.addPage();
-          position = margin - (contentHeight - heightLeft);
           pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
           heightLeft -= pageContentHeight;
+
+          while (heightLeft > 0) {
+            pdf.addPage([210, 330], 'portrait');
+            position = margin - (contentHeight - heightLeft);
+            pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
+            heightLeft -= pageContentHeight;
+          }
         }
       }
 
-      pdf.save(`Laporan_SIRAMA_${filterState.startDate}_s.d._${filterState.endDate}.pdf`);
+      const filePrefix = reportType === 'summary' 
+        ? 'Rekap_Kehadiran_Guru' 
+        : reportType === 'detailed' 
+        ? 'Log_Presensi_KBM' 
+        : 'Berita_Acara_KBM';
+      pdf.save(`${filePrefix}_${filterState.startDate}_sd_${filterState.endDate}.pdf`);
     } catch (err) {
       console.error('Error generating PDF:', err);
       // Fallback ke cetak iframe
@@ -304,22 +341,22 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Laporan_SIRAMA_${filterState.startDate}_sd_${filterState.endDate}</title>
+          <title>Rekap_Kehadiran_Guru_${filterState.startDate}_sd_${filterState.endDate}</title>
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           ${styleTags}
           <style>
             @page {
               size: 210mm 330mm;
-              margin: 10mm;
+              margin: 8mm;
             }
             body {
               margin: 0;
               padding: 0;
-              font-family: sans-serif;
+              font-family: Arial, sans-serif;
               color: #000 !important;
               background: #fff !important;
-              font-size: 11px;
+              font-size: 10px;
             }
             .print-page-break {
               page-break-after: always;
@@ -327,16 +364,19 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
             table {
               width: 100%;
               border-collapse: collapse;
-              margin: 10px 0;
+              margin: 6px 0;
               table-layout: fixed;
             }
             th, td {
               border: 1px solid #000 !important;
-              padding: 5px;
+              padding: 4px;
               word-wrap: break-word;
             }
             thead {
               display: table-header-group;
+            }
+            tfoot {
+              display: table-footer-group;
             }
             tr {
               page-break-inside: avoid;
@@ -517,24 +557,25 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
         </div>
 
         {/* Print Preview Container */}
-        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-inner bg-slate-100 p-3 sm:p-6 max-h-[65vh] overflow-y-auto">
+        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-inner bg-slate-100 p-2 sm:p-5 max-h-[68vh] overflow-y-auto">
           
           <div 
             id="official-print-document" 
             ref={printAreaRef}
-            className="bg-white p-6 sm:p-10 rounded-sm shadow-md mx-auto max-w-4xl text-slate-900 text-xs font-sans print:p-0 print:shadow-none print:max-w-none"
+            className="bg-white p-5 sm:p-8 rounded-sm shadow-md mx-auto text-slate-900 font-sans print:p-0 print:shadow-none print:max-w-none"
+            style={{ width: '100%', maxWidth: '210mm' }}
           >
             {/* KOP SURAT RESMI MADRASAH (Logo Kiri: Madrasah, Logo Kanan: SIRAMA Web App) */}
-            <div className="border-b-[3px] border-double border-slate-900 pb-3 mb-5">
-              <div className="flex items-center justify-between gap-4">
+            <div className="border-b-[3px] border-double border-slate-900 pb-2 mb-3">
+              <div className="flex items-center justify-between gap-3">
                 {/* Logo Kiri: Logo Resmi Lembaga Madrasah */}
-                <div className="w-20 h-20 flex-shrink-0 flex justify-center items-center">
+                <div className="w-16 h-16 flex-shrink-0 flex justify-center items-center">
                   <img
                     src={base64Madrasah || parseDirectImageUrl(logoMadrasah)}
                     alt="Logo Madrasah"
                     crossOrigin="anonymous"
                     referrerPolicy="no-referrer"
-                    className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-sm select-none"
+                    className="w-14 h-14 object-contain select-none"
                     onError={(e) => {
                       const target = e.currentTarget;
                       const alt = getAlternateRawUrl(logoMadrasah);
@@ -548,29 +589,29 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                 </div>
 
                 {/* Kop Teks Tengah */}
-                <div className="flex-1 text-center leading-snug px-2 overflow-hidden">
-                  <h4 className="text-[11px] sm:text-xs font-bold tracking-wider text-slate-800 uppercase whitespace-nowrap">
+                <div className="flex-1 text-center leading-tight px-1 overflow-hidden">
+                  <h4 className="text-[10px] sm:text-[11px] font-bold tracking-wider text-slate-800 uppercase">
                     {yayasanName}
                   </h4>
-                  <h2 className="text-xs sm:text-base md:text-lg font-extrabold text-sky-950 tracking-tight uppercase my-0.5 whitespace-nowrap">
+                  <h2 className="text-xs sm:text-sm md:text-base font-extrabold text-sky-950 tracking-tight uppercase my-0.5">
                     {lembagaName}
                   </h2>
-                  <p className="text-[11px] text-slate-700 font-medium">
+                  <p className="text-[9.5px] text-slate-700 font-medium">
                     {identitasName}
                   </p>
-                  <p className="text-[10px] text-slate-600">
+                  <p className="text-[9px] text-slate-600">
                     {alamatName}
                   </p>
                 </div>
 
                 {/* Logo Kanan: Logo Web App SIRAMA */}
-                <div className="w-20 h-20 flex-shrink-0 flex justify-center items-center">
+                <div className="w-16 h-16 flex-shrink-0 flex justify-center items-center">
                   <img
                     src={base64Sirama || parseDirectImageUrl(logoSirama)}
                     alt="Logo SIRAMA"
                     crossOrigin="anonymous"
                     referrerPolicy="no-referrer"
-                    className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-sm select-none"
+                    className="w-14 h-14 object-contain select-none"
                     onError={(e) => {
                       const target = e.currentTarget;
                       const alt = getAlternateRawUrl(logoSirama);
@@ -586,17 +627,17 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
             </div>
 
             {/* JUDUL LAPORAN */}
-            <div className="text-center my-4">
-              <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wide text-slate-900 underline decoration-slate-900 decoration-1 underline-offset-4">
+            <div className="text-center my-2.5">
+              <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wide text-slate-900 underline decoration-slate-900 decoration-1 underline-offset-4">
                 {judulLaporan}
               </h3>
-              <p className="text-xs font-semibold text-slate-700 mt-1">
+              <p className="text-[10.5px] font-semibold text-slate-700 mt-0.5">
                 Periode: {periodeText}
               </p>
             </div>
 
             {/* RINGKASAN METRIK */}
-            <div className="my-4 bg-slate-50 border border-slate-300 p-2.5 rounded text-[11px] grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="my-2.5 bg-slate-50 border border-slate-300 p-2 rounded text-[10px] grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div>
                 <span className="text-slate-500 block">Total Sesi KBM:</span>
                 <strong className="text-slate-800">{stats.total} Sesi</strong>
@@ -606,7 +647,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                 <strong className="text-emerald-700">{stats.persentase}% ({stats.hadirEfektif} Sesi)</strong>
               </div>
               <div>
-                <span className="text-slate-500 block">Izin / Sakit / Alpa:</span>
+                <span className="text-slate-500 block">Izin / Sakit / Alpha:</span>
                 <strong className="text-slate-800">{stats.izin} I / {stats.sakit} S / {stats.alpa} A</strong>
               </div>
               <div>
@@ -617,65 +658,75 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
             {/* TABEL SESUAI PILIHAN MODEL */}
             {reportType === 'summary' ? (
-              // TABEL 1: REKAP PER PENGAJAR (Bulanan) - Dikelompokkan Per Kelas
-              Object.entries(calculateTeacherSummariesByClass(currentRecords)).sort((a,b) => a[0].localeCompare(b[0])).map(([kelas, teacherSummariesForClass], idx, arr) => (
-                <div key={kelas} className={`my-4 overflow-x-auto ${idx !== arr.length - 1 ? 'print:break-after-page print-page-break' : ''}`}>
-                  <div className="text-center mb-4">
-                    <h3 className="text-sm font-bold uppercase underline">DAFTAR HADIR GURU - KELAS {kelas}</h3>
-                    <p className="text-xs font-semibold">Periode: {periodeText}</p>
-                  </div>
-                  <table className="w-full text-left border-collapse border border-slate-800 text-[10px] sm:text-[11px]">
-                    <thead>
-                      <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b border-slate-800">
-                        <th className="border border-slate-800 py-1.5 px-2 w-8">No</th>
-                        <th className="border border-slate-800 py-1.5 px-2 text-left">Nama Guru</th>
-                        <th className="border border-slate-800 py-1.5 px-1.5 w-12">Total Sesi</th>
-                        <th className="border border-slate-800 py-1.5 px-1 w-8">H</th>
-                        <th className="border border-slate-800 py-1.5 px-1 w-8">I</th>
-                        <th className="border border-slate-800 py-1.5 px-1 w-8">S</th>
-                        <th className="border border-slate-800 py-1.5 px-1 w-8">A</th>
-                        <th className="border border-slate-800 py-1.5 px-1 w-8">TD</th>
-                        <th className="border border-slate-800 py-1.5 px-2 w-14">% Hadir</th>
-                        <th className="border border-slate-800 py-1.5 px-2 w-24">Keterangan</th>
+              // TABEL REKAP KEHADIRAN PER GURU (KONSOLIDASI 1 LEMBAR F4)
+              <div className="my-2.5 overflow-x-auto">
+                <table className="w-full text-left border-collapse border border-slate-800 text-[10px]">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b border-slate-800">
+                      <th className="border border-slate-800 py-1.5 px-1 w-9 text-center">Nomor</th>
+                      <th className="border border-slate-800 py-1.5 px-2 text-left">Nama</th>
+                      <th className="border border-slate-800 py-1.5 px-1 w-24 text-center">Total Sesi / Wajib Hadir</th>
+                      <th className="border border-slate-800 py-1.5 px-1 w-12 text-center">Hadir</th>
+                      <th className="border border-slate-800 py-1.5 px-1 w-11 text-center">Izin</th>
+                      <th className="border border-slate-800 py-1.5 px-1 w-11 text-center">Sakit</th>
+                      <th className="border border-slate-800 py-1.5 px-1 w-11 text-center">Alpha</th>
+                      <th className="border border-slate-800 py-1.5 px-1 w-16 text-center">Tugas Dinas</th>
+                      <th className="border border-slate-800 py-1.5 px-1 w-20 text-center">Persentase Kehadiran</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedTeacherSummaries.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="border border-slate-800 py-4 text-center text-slate-500 italic">
+                          Tidak ada data presensi guru pada periode yang dipilih ({periodeText}).
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {teacherSummariesForClass.map((ts, idx) => {
-                        const sangatBaik = config.PERSEN_SANGAT_BAIK ?? 90;
-                        const baik = config.PERSEN_BAIK ?? 80;
-                        const predikat = ts.alpa > 0 
-                          ? (config.LABEL_KURANG || 'Perlu Pembinaan') 
-                          : ts.persentaseKehadiran >= sangatBaik 
-                          ? (config.LABEL_SANGAT_BAIK || 'Sangat Baik') 
-                          : ts.persentaseKehadiran >= baik 
-                          ? (config.LABEL_BAIK || 'Baik') 
-                          : (config.LABEL_CUKUP || 'Cukup');
+                    ) : (
+                      sortedTeacherSummaries.map((ts, idx) => {
+                        const wajibHadir = ts.totalSesi;
+                        const kehadiran = ts.hadir + ts.tugasDinas;
+                        const persentase = wajibHadir > 0 ? Math.round((kehadiran / wajibHadir) * 100) : 0;
 
                         return (
-                          <tr key={`${kelas}-${ts.nama}`} className="border-b border-slate-300">
-                            <td className="border border-slate-800 py-1 px-1.5 text-center font-medium">{idx + 1}</td>
-                            <td className="border border-slate-800 py-1 px-2 font-semibold">
-                              {ts.nama}
+                          <tr key={ts.nama} className="border-b border-slate-300 even:bg-slate-50/50">
+                            <td className="border border-slate-800 py-1 px-1 text-center font-medium">{idx + 1}</td>
+                            <td className="border border-slate-800 py-1 px-2 font-semibold text-slate-900">{ts.nama}</td>
+                            <td className="border border-slate-800 py-1 px-1 text-center font-bold bg-slate-50/50">{wajibHadir}</td>
+                            <td className="border border-slate-800 py-1 px-1 text-center font-semibold text-emerald-800">{ts.hadir}</td>
+                            <td className="border border-slate-800 py-1 px-1 text-center">{ts.izin || 0}</td>
+                            <td className="border border-slate-800 py-1 px-1 text-center">{ts.sakit || 0}</td>
+                            <td className={`border border-slate-800 py-1 px-1 text-center font-bold ${ts.alpa > 0 ? 'text-rose-700' : 'text-slate-700'}`}>
+                              {ts.alpa || 0}
                             </td>
-                            <td className="border border-slate-800 py-1 px-1.5 text-center font-bold">{ts.totalSesi}</td>
-                            <td className="border border-slate-800 py-1 px-1 text-center font-semibold">{ts.hadir}</td>
-                            <td className="border border-slate-800 py-1 px-1 text-center">{ts.izin || '-'}</td>
-                            <td className="border border-slate-800 py-1 px-1 text-center">{ts.sakit || '-'}</td>
-                            <td className="border border-slate-800 py-1 px-1 text-center font-bold text-rose-700">{ts.alpa || '-'}</td>
-                            <td className="border border-slate-800 py-1 px-1 text-center">{ts.tugasDinas || '-'}</td>
-                            <td className="border border-slate-800 py-1 px-1.5 text-center font-bold">
-                              {ts.persentaseKehadiran}%
-                            </td>
-                            <td className="border border-slate-800 py-1 px-2 text-center text-[10px] font-medium">
-                              {predikat}
+                            <td className="border border-slate-800 py-1 px-1 text-center">{ts.tugasDinas || 0}</td>
+                            <td className="border border-slate-800 py-1 px-1 text-center font-bold bg-sky-50/40 text-slate-900">
+                              {persentase}%
                             </td>
                           </tr>
                         );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              ))
+                      })
+                    )}
+                  </tbody>
+                  {sortedTeacherSummaries.length > 0 && (
+                    <tfoot>
+                      <tr className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-800">
+                        <td colSpan={2} className="border border-slate-800 py-1.5 px-2 text-center uppercase tracking-wider text-[10px]">
+                          TOTAL REKAPITULASI
+                        </td>
+                        <td className="border border-slate-800 py-1.5 px-1 text-center">{totalWajibHadir}</td>
+                        <td className="border border-slate-800 py-1.5 px-1 text-center text-emerald-800">{totalHadir}</td>
+                        <td className="border border-slate-800 py-1.5 px-1 text-center">{totalIzin}</td>
+                        <td className="border border-slate-800 py-1.5 px-1 text-center">{totalSakit}</td>
+                        <td className="border border-slate-800 py-1.5 px-1 text-center text-rose-700">{totalAlpa}</td>
+                        <td className="border border-slate-800 py-1.5 px-1 text-center">{totalTugasDinas}</td>
+                        <td className="border border-slate-800 py-1.5 px-1 text-center bg-sky-100 text-sky-950 font-extrabold">
+                          {overallPercentage}%
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
             ) : reportType === 'detailed' ? (
               // TABEL 2: LOG HARIAN / RINCI
               <div className="my-4 overflow-x-auto">
@@ -777,26 +828,26 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
             )}
 
             {/* TANDA TANGAN RESMI */}
-            <div className="mt-8 pt-4 break-inside-avoid text-xs">
+            <div className="mt-6 pt-2 break-inside-avoid text-[10.5px]">
               <div className="flex justify-between items-start">
                 
                 {/* Waka / Staff Kurikulum */}
-                <div className="text-center w-64">
-                  <p className="text-slate-600 mb-1">Mengetahui,</p>
+                <div className="text-center w-56">
+                  <p className="text-slate-600 mb-0.5">Mengetahui,</p>
                   <p className="font-bold text-slate-900">{staffJabatan}</p>
-                  <div className="h-20" />
+                  <div className="h-14" />
                   <p className="font-bold text-slate-900 underline underline-offset-2">
                     {staffName}
                   </p>
                 </div>
 
                 {/* Kepala Madrasah */}
-                <div className="text-center w-64">
-                  <p className="text-slate-600 mb-1">
+                <div className="text-center w-56">
+                  <p className="text-slate-600 mb-0.5">
                     {kotaName}, {todayStr}
                   </p>
                   <p className="font-bold text-slate-900">{kepalaJabatan}</p>
-                  <div className="h-20" />
+                  <div className="h-14" />
                   <p className="font-bold text-slate-900 underline underline-offset-2">
                     {kepalaName}
                   </p>

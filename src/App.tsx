@@ -1085,6 +1085,7 @@ export default function App() {
         config={config}
         filterState={filter}
         onChangeFilterState={setFilter}
+        teachers={teachers}
       />
 
       {/* WHATSAPP SHARE MODAL (Included today's Guru Piket) */}
