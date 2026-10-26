@@ -17,6 +17,81 @@ export interface GasSyncResponse {
 }
 
 /**
+ * Universal GAS request sender:
+ * 1. Tries local server proxy /api/gas-proxy (bypasses browser CORS & iframe sandbox redirect restrictions)
+ * 2. Falls back to direct browser fetch if proxy is not accessible
+ */
+export async function sendGasRequest(
+  gasUrl: string,
+  method: 'GET' | 'POST',
+  payload?: any
+): Promise<{ ok: boolean; status: number; text: string; data?: any }> {
+  // Strategy 1: Server proxy (/api/gas-proxy)
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const proxyUrl = new URL('/api/gas-proxy', origin);
+    proxyUrl.searchParams.set('url', gasUrl.trim());
+    if (method === 'GET') {
+      proxyUrl.searchParams.set('t', Date.now().toString());
+    }
+
+    const options: RequestInit = {
+      method,
+      redirect: 'follow',
+    };
+
+    if (method === 'POST' && payload) {
+      options.headers = {
+        'Content-Type': 'application/json',
+      };
+      options.body = JSON.stringify(payload);
+    }
+
+    const res = await fetch(proxyUrl.toString(), options);
+    if (res.ok) {
+      const text = await res.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = null;
+      }
+      return { ok: true, status: res.status, text, data };
+    }
+  } catch (proxyError) {
+    console.warn('Proxy /api/gas-proxy attempt failed or unavailable, falling back to direct fetch:', proxyError);
+  }
+
+  // Strategy 2: Direct browser fetch
+  const target = new URL(gasUrl.trim());
+  if (method === 'GET') {
+    target.searchParams.set('t', Date.now().toString());
+  }
+
+  const directOptions: RequestInit = {
+    method,
+    redirect: 'follow',
+  };
+
+  if (method === 'POST' && payload) {
+    directOptions.headers = {
+      'Content-Type': 'text/plain;charset=utf-8',
+    };
+    directOptions.body = JSON.stringify(payload);
+  }
+
+  const directRes = await fetch(target.toString(), directOptions);
+  const text = await directRes.text();
+  let data: any = null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+  return { ok: directRes.ok, status: directRes.status, text, data };
+}
+
+/**
  * Fetch everything from Google Apps Script Web App
  */
 export async function fetchFromGoogleSheets(gasUrl: string): Promise<GasSyncResponse> {
@@ -28,21 +103,13 @@ export async function fetchFromGoogleSheets(gasUrl: string): Promise<GasSyncResp
   }
 
   try {
-    const targetUrl = new URL(gasUrl.trim());
-    targetUrl.searchParams.set('t', Date.now().toString());
+    const response = await sendGasRequest(gasUrl, 'GET');
 
-    const response = await fetch(targetUrl.toString(), {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+    if (!response.ok && !response.data) {
+      throw new Error(`HTTP Error ${response.status}: ${response.text || 'Gagal memuat'}`);
     }
 
-    const json = await response.json();
+    const json = response.data || JSON.parse(response.text);
     if (json.status === 'success' || json.success === true) {
       // Normalize config keys from Google Sheets (handles lowercase, uppercase, spaces)
       const rawConfig = json.config || {};
@@ -140,21 +207,8 @@ export async function postBulkDayAttendance(
       records,
     };
 
-    const response = await fetch(gasUrl.trim(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const rawText = await response.text();
-    let json: any = {};
-    try {
-      json = JSON.parse(rawText);
-    } catch {
-      json = { status: response.ok ? 'success' : 'error' };
-    }
+    const response = await sendGasRequest(gasUrl, 'POST', payload);
+    const json = response.data || {};
 
     if (json.status === 'error') {
       return {
@@ -196,21 +250,8 @@ export async function postBulkGuruPiket(
       piket: piketRecord,
     };
 
-    const response = await fetch(gasUrl.trim(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const rawText = await response.text();
-    let json: any = {};
-    try {
-      json = JSON.parse(rawText);
-    } catch {
-      json = { status: response.ok ? 'success' : 'error' };
-    }
+    const response = await sendGasRequest(gasUrl, 'POST', payload);
+    const json = response.data || {};
 
     if (json.status === 'error') {
       return {
@@ -254,21 +295,8 @@ export async function postBulkRekapApel(
       records,
     };
 
-    const response = await fetch(gasUrl.trim(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const rawText = await response.text();
-    let json: any = {};
-    try {
-      json = JSON.parse(rawText);
-    } catch {
-      json = { status: response.ok ? 'success' : 'error' };
-    }
+    const response = await sendGasRequest(gasUrl, 'POST', payload);
+    const json = response.data || {};
 
     if (json.status === 'error') {
       return {
@@ -310,21 +338,8 @@ export async function postSaveConfig(
       config: newConfig,
     };
 
-    const response = await fetch(gasUrl.trim(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const rawText = await response.text();
-    let json: any = {};
-    try {
-      json = JSON.parse(rawText);
-    } catch {
-      json = { status: response.ok ? 'success' : 'error' };
-    }
+    const response = await sendGasRequest(gasUrl, 'POST', payload);
+    const json = response.data || {};
 
     if (json.status === 'error') {
       return {
@@ -362,21 +377,8 @@ export async function postSetupDatabase(gasUrl: string): Promise<GasSyncResponse
       action: 'setupDatabase',
     };
 
-    const response = await fetch(gasUrl.trim(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const rawText = await response.text();
-    let json: any = {};
-    try {
-      json = JSON.parse(rawText);
-    } catch {
-      json = { status: response.ok ? 'success' : 'error' };
-    }
+    const response = await sendGasRequest(gasUrl, 'POST', payload);
+    const json = response.data || {};
 
     if (json.status === 'error') {
       return {
