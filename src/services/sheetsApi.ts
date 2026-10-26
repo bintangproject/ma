@@ -587,35 +587,93 @@ function doGet(e) {
       }
     }
 
-    // 7. Baca Sheet Guru Piket Harian (Dinamis: 4, 5, 6 guru atau lebih)
+    // 7. Baca Sheet Guru Piket Harian (Mendukung format per-guru maupun format horizontal)
     const guruPiket = [];
     const piketSheet = ss.getSheetByName(SHEET_PIKET);
     if (piketSheet) {
       const pData = piketSheet.getDataRange().getValues();
       if (pData.length > 1) {
         const pHeaders = pData[0].map(function(h) { return String(h || '').trim().toLowerCase(); });
-        for (let i = 1; i < pData.length; i++) {
-          const row = pData[i];
-          if (!row[1]) continue;
-          const pObj = {
-            id: String(row[0] || ('pkt-' + i)),
-            tanggal: formatDateString(row[1]),
-            hari: String(row[2] || ''),
-          };
-          let pIdx = 1;
-          for (let col = 3; col < row.length; col++) {
-            const hName = pHeaders[col] || '';
-            const val = String(row[col] || '').trim();
-            if (hName.indexOf('keterangan') !== -1) {
-              pObj.keterangan = val;
-            } else if (hName.indexOf('waktu') !== -1) {
-              pObj.waktuInput = val;
-            } else if (val) {
-              pObj['piket' + pIdx] = val;
-              pIdx++;
+        const hasStatusCol = pHeaders.some(function(h) { return h.indexOf('status') !== -1; });
+        const hasNamaCol = pHeaders.some(function(h) { return h.indexOf('nama') !== -1 || h === 'guru'; });
+
+        if (hasStatusCol && hasNamaCol) {
+          // Format Standar: 1 Baris Per Guru (ID, Tanggal, Hari, Nama Guru, Status, Keterangan, Waktu Input)
+          const piketMap = {};
+          let namaColIdx = 3;
+          let statusColIdx = 4;
+          let ketColIdx = 5;
+          let waktuColIdx = 6;
+          for (let c = 0; c < pHeaders.length; c++) {
+            if (pHeaders[c].indexOf('nama') !== -1 || pHeaders[c] === 'guru') namaColIdx = c;
+            if (pHeaders[c].indexOf('status') !== -1) statusColIdx = c;
+            if (pHeaders[c].indexOf('keterangan') !== -1) ketColIdx = c;
+            if (pHeaders[c].indexOf('waktu') !== -1) waktuColIdx = c;
+          }
+
+          for (let i = 1; i < pData.length; i++) {
+            const row = pData[i];
+            if (!row[1]) continue;
+            const tgl = formatDateString(row[1]);
+            if (!piketMap[tgl]) {
+              piketMap[tgl] = {
+                id: 'pkt-' + tgl,
+                tanggal: tgl,
+                hari: String(row[2] || ''),
+                keterangan: String(row[ketColIdx] || ''),
+                waktuInput: String(row[waktuColIdx] || ''),
+                petugasList: []
+              };
+            }
+            const gNama = String(row[namaColIdx] || '').trim();
+            const gStatus = String(row[statusColIdx] || 'HADIR').trim().toUpperCase();
+            if (gNama) {
+              piketMap[tgl].petugasList.push({ nama: gNama, status: gStatus });
+            }
+            if (row[ketColIdx] && !piketMap[tgl].keterangan) {
+              piketMap[tgl].keterangan = String(row[ketColIdx]);
+            }
+            if (row[waktuColIdx]) {
+              piketMap[tgl].waktuInput = String(row[waktuColIdx]);
             }
           }
-          guruPiket.push(pObj);
+
+          Object.keys(piketMap).forEach(function(tKey) {
+            const item = piketMap[tKey];
+            for (let idx = 0; idx < item.petugasList.length; idx++) {
+              item['piket' + (idx + 1)] = item.petugasList[idx].nama;
+              item['status' + (idx + 1)] = item.petugasList[idx].status;
+            }
+            guruPiket.push(item);
+          });
+        } else {
+          // Format Horizontal (Piket 1, Piket 2, ...)
+          for (let i = 1; i < pData.length; i++) {
+            const row = pData[i];
+            if (!row[1]) continue;
+            const pObj = {
+              id: String(row[0] || ('pkt-' + i)),
+              tanggal: formatDateString(row[1]),
+              hari: String(row[2] || ''),
+              petugasList: []
+            };
+            let pIdx = 1;
+            for (let col = 3; col < row.length; col++) {
+              const hName = pHeaders[col] || '';
+              const val = String(row[col] || '').trim();
+              if (hName.indexOf('keterangan') !== -1) {
+                pObj.keterangan = val;
+              } else if (hName.indexOf('waktu') !== -1) {
+                pObj.waktuInput = val;
+              } else if (val) {
+                pObj['piket' + pIdx] = val;
+                pObj['status' + pIdx] = 'HADIR';
+                pObj.petugasList.push({ nama: val, status: 'HADIR' });
+                pIdx++;
+              }
+            }
+            guruPiket.push(pObj);
+          }
         }
       }
     }
@@ -805,7 +863,7 @@ function handleAction(ss, postData) {
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
-  // AKSI 3: Simpan Guru Piket Harian (Dinamis: 4, 5, 6 guru atau lebih)
+  // AKSI 3: Simpan Guru Piket Harian (Mendukung format per-guru maupun format horizontal)
   if (postData.action === "saveGuruPiket") {
     let pSheet = ss.getSheetByName(SHEET_PIKET);
     let pkt = postData.piket;
@@ -814,85 +872,135 @@ function handleAction(ss, postData) {
     }
     const targetDate = formatDateString(pkt.tanggal);
 
-    // Kumpulkan daftar nama piket dinamis
-    const piketNames = [];
+    // Kumpulkan daftar petugas piket dan statusnya
+    const petugasList = [];
     if (Array.isArray(pkt.petugasList) && pkt.petugasList.length > 0) {
       for (let p = 0; p < pkt.petugasList.length; p++) {
-        if (pkt.petugasList[p].nama) piketNames.push(String(pkt.petugasList[p].nama).trim());
+        const item = pkt.petugasList[p];
+        if (item && item.nama) {
+          petugasList.push({
+            nama: String(item.nama).trim(),
+            status: String(item.status || 'HADIR').trim().toUpperCase()
+          });
+        }
       }
     } else {
       let pI = 1;
       while (pkt['piket' + pI]) {
-        piketNames.push(String(pkt['piket' + pI]).trim());
+        petugasList.push({
+          nama: String(pkt['piket' + pI]).trim(),
+          status: String(pkt['status' + pI] || 'HADIR').trim().toUpperCase()
+        });
         pI++;
       }
     }
 
     if (!pSheet) {
       pSheet = ss.insertSheet(SHEET_PIKET);
-      const newHeader = ["ID", "Tanggal", "Hari"];
-      const colCount = Math.max(piketNames.length, 6);
-      for (let nh = 1; nh <= colCount; nh++) {
-        newHeader.push("Piket " + nh);
-      }
-      newHeader.push("Keterangan", "Waktu Input");
-      pSheet.appendRow(newHeader);
-      pSheet.getRange(1, 1, 1, newHeader.length).setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+      pSheet.appendRow(["ID", "Tanggal", "Hari", "Nama Guru", "Status", "Keterangan", "Waktu Input"]);
+      pSheet.getRange("A1:G1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
     }
 
-    // Pastikan kolom sheet cukup
-    const headerRow = pSheet.getRange(1, 1, 1, Math.max(pSheet.getLastColumn(), 9)).getValues()[0];
-    let ketColIdx = -1;
-    let waktuColIdx = -1;
-    for (let c = 0; c < headerRow.length; c++) {
-      const hTitle = String(headerRow[c] || '').toLowerCase();
-      if (hTitle.indexOf('keterangan') !== -1) ketColIdx = c;
-      if (hTitle.indexOf('waktu') !== -1) waktuColIdx = c;
-    }
+    const headerRow = pSheet.getRange(1, 1, 1, Math.max(pSheet.getLastColumn(), 7)).getValues()[0];
+    const pHeaders = headerRow.map(function(h) { return String(h || '').trim().toLowerCase(); });
+    const isPerRowFormat = pHeaders.some(function(h) { return h.indexOf('status') !== -1; }) &&
+                           pHeaders.some(function(h) { return h.indexOf('nama') !== -1 || h === 'guru'; });
 
     const data = pSheet.getDataRange().getValues();
     const kept = [];
-    for (let i = 1; i < data.length; i++) {
-      if (!data[i][1]) continue;
-      if (formatDateString(data[i][1]) !== targetDate) {
-        kept.push(data[i]);
+
+    if (isPerRowFormat) {
+      // FORMAT PER-BARIS (ID, Tanggal, Hari, Nama Guru, Status, Keterangan, Waktu Input)
+      for (let i = 1; i < data.length; i++) {
+        if (!data[i][1]) continue;
+        if (formatDateString(data[i][1]) !== targetDate) {
+          kept.push(data[i]);
+        }
       }
-    }
 
-    const totalCols = Math.max(headerRow.length, 3 + piketNames.length + 2);
-    const newRow = new Array(totalCols).fill('');
-    newRow[0] = pkt.id || ('pkt-' + targetDate);
-    newRow[1] = targetDate;
-    newRow[2] = pkt.hari || '';
-    for (let pn = 0; pn < piketNames.length; pn++) {
-      newRow[3 + pn] = piketNames[pn];
-    }
-    if (ketColIdx > 2) {
-      newRow[ketColIdx] = pkt.keterangan || '';
-    } else {
-      newRow[3 + piketNames.length] = pkt.keterangan || '';
-    }
-    if (waktuColIdx > 2) {
-      newRow[waktuColIdx] = timestamp;
-    } else {
-      newRow[3 + piketNames.length + 1] = timestamp;
-    }
-
-    kept.push(newRow);
-
-    if (pSheet.getLastRow() > 1) {
-      pSheet.getRange(2, 1, pSheet.getLastRow() - 1, pSheet.getLastColumn()).clearContent();
-    }
-    if (kept.length > 0) {
-      if (pSheet.getMaxRows() < (kept.length + 5)) {
-        pSheet.insertRowsAfter(pSheet.getMaxRows(), 20);
+      let namaColIdx = 3;
+      let statusColIdx = 4;
+      let ketColIdx = 5;
+      let waktuColIdx = 6;
+      for (let c = 0; c < pHeaders.length; c++) {
+        if (pHeaders[c].indexOf('nama') !== -1 || pHeaders[c] === 'guru') namaColIdx = c;
+        if (pHeaders[c].indexOf('status') !== -1) statusColIdx = c;
+        if (pHeaders[c].indexOf('keterangan') !== -1) ketColIdx = c;
+        if (pHeaders[c].indexOf('waktu') !== -1) waktuColIdx = c;
       }
-      pSheet.getRange(2, 1, kept.length, totalCols).setValues(kept);
+
+      const totalCols = Math.max(pSheet.getLastColumn(), 7);
+      for (let idx = 0; idx < petugasList.length; idx++) {
+        const row = new Array(totalCols).fill('');
+        row[0] = (pkt.id || ('pkt-' + targetDate)) + '-' + (idx + 1);
+        row[1] = targetDate;
+        row[2] = pkt.hari || '';
+        row[namaColIdx] = petugasList[idx].nama;
+        row[statusColIdx] = petugasList[idx].status || 'HADIR';
+        row[ketColIdx] = pkt.keterangan || '';
+        row[waktuColIdx] = timestamp;
+        kept.push(row);
+      }
+
+      if (pSheet.getLastRow() > 1) {
+        pSheet.getRange(2, 1, pSheet.getLastRow() - 1, pSheet.getLastColumn()).clearContent();
+      }
+      if (kept.length > 0) {
+        if (pSheet.getMaxRows() < (kept.length + 5)) {
+          pSheet.insertRowsAfter(pSheet.getMaxRows(), 20);
+        }
+        pSheet.getRange(2, 1, kept.length, totalCols).setValues(kept);
+      }
+    } else {
+      // FORMAT HORIZONTAL (Piket 1, Piket 2, ...)
+      let ketColIdx = -1;
+      let waktuColIdx = -1;
+      for (let c = 0; c < pHeaders.length; c++) {
+        if (pHeaders[c].indexOf('keterangan') !== -1) ketColIdx = c;
+        if (pHeaders[c].indexOf('waktu') !== -1) waktuColIdx = c;
+      }
+
+      for (let i = 1; i < data.length; i++) {
+        if (!data[i][1]) continue;
+        if (formatDateString(data[i][1]) !== targetDate) {
+          kept.push(data[i]);
+        }
+      }
+
+      const totalCols = Math.max(headerRow.length, 3 + petugasList.length + 2);
+      const newRow = new Array(totalCols).fill('');
+      newRow[0] = pkt.id || ('pkt-' + targetDate);
+      newRow[1] = targetDate;
+      newRow[2] = pkt.hari || '';
+      for (let pn = 0; pn < petugasList.length; pn++) {
+        newRow[3 + pn] = petugasList[pn].nama;
+      }
+      if (ketColIdx > 2) {
+        newRow[ketColIdx] = pkt.keterangan || '';
+      } else {
+        newRow[3 + petugasList.length] = pkt.keterangan || '';
+      }
+      if (waktuColIdx > 2) {
+        newRow[waktuColIdx] = timestamp;
+      } else {
+        newRow[3 + petugasList.length + 1] = timestamp;
+      }
+      kept.push(newRow);
+
+      if (pSheet.getLastRow() > 1) {
+        pSheet.getRange(2, 1, pSheet.getLastRow() - 1, pSheet.getLastColumn()).clearContent();
+      }
+      if (kept.length > 0) {
+        if (pSheet.getMaxRows() < (kept.length + 5)) {
+          pSheet.insertRowsAfter(pSheet.getMaxRows(), 20);
+        }
+        pSheet.getRange(2, 1, kept.length, totalCols).setValues(kept);
+      }
     }
 
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
-      message: "Berhasil menyimpan data " + piketNames.length + " Guru Piket tanggal " + targetDate
+      message: "Berhasil menyimpan kehadiran " + petugasList.length + " guru piket tanggal " + targetDate
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -1208,9 +1316,9 @@ function setupInitialDatabase() {
   if (!piketSheet) {
     piketSheet = ss.insertSheet(SHEET_PIKET);
     piketSheet.appendRow([
-      "ID", "Tanggal", "Hari", "Piket 1", "Piket 2", "Piket 3", "Piket 4", "Piket 5", "Piket 6", "Keterangan", "Waktu Input"
+      "ID", "Tanggal", "Hari", "Nama Guru", "Status", "Keterangan", "Waktu Input"
     ]);
-    piketSheet.getRange("A1:K1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
+    piketSheet.getRange("A1:G1").setFontWeight("bold").setBackground("#0284c7").setFontColor("#ffffff");
   }
 
   // 8. Sheet Rekap Apel Pagi

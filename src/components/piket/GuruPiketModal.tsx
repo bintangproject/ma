@@ -171,7 +171,6 @@ export const GuruPiketModal: React.FC<GuruPiketModalProps> = ({
     }
 
     text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `_Daftar petugas piket bersumber dari Google Spreadsheet._\n`;
     text += `_Waka Kurikulum: ${config.NAMA_STAFF || 'Ust. Edi Amin, M.Hum.'}_`;
     return text;
   };
