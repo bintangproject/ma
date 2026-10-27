@@ -65,31 +65,69 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     ? Math.round((totalKehadiranEfektif / totalWajibHadir) * 100) 
     : 0;
 
-  // Helper membagi daftar guru ke lembar-lembar F4:
-  // - Jika <= 18 guru: muat pas dalam 1 lembar F4 lengkap dengan Kop, Judul, Metrik, Tabel, Total, & Tanda Tangan
-  // - Jika > 18 guru: Halaman 1 memuat Kop, Judul, Metrik, dan 20 guru. Halaman berikutnya memuat 22 guru (jika ada tanda tangan) atau 26 guru.
+  // Helper membagi daftar guru ke lembar-lembar F4 secara dinamis:
+  // - Mendukung jumlah guru fleksibel (1 s.d. 60+ guru saat rekap bulanan)
+  // - Mengukur kapasitas kertas F4 (210 x 330 mm) dengan margin aman 10mm agar tidak ada baris atau tanda tangan yang terpotong:
+  //   * Hal 1: Max 12 guru (terdapat Kop Surat resmi, Judul Laporan, & Kotak Metrik)
+  //   * Hal Antara: Max 18 guru (terdapat Kop Lanjutan ringkas & header tabel)
+  //   * Hal Terakhir: Max 13 guru (terdapat Baris Total & Blok Tanda Tangan resmi)
   const summaryPages = useMemo(() => {
     if (sortedTeacherSummaries.length === 0) return [[]];
-    if (sortedTeacherSummaries.length <= 18) {
+    
+    const total = sortedTeacherSummaries.length;
+    
+    // Jika <= 10 guru, muat pas dan rapi dalam 1 lembar F4 tunggal
+    if (total <= 10) {
       return [sortedTeacherSummaries];
     }
-    const pages: typeof sortedTeacherSummaries[] = [];
-    pages.push(sortedTeacherSummaries.slice(0, 20));
 
-    let offset = 20;
-    while (offset < sortedTeacherSummaries.length) {
-      const remaining = sortedTeacherSummaries.length - offset;
-      const chunkSize = remaining <= 22 ? 22 : 26;
-      pages.push(sortedTeacherSummaries.slice(offset, offset + chunkSize));
-      offset += chunkSize;
+    const MAX_P1 = 12;
+    const MAX_INTERMEDIATE = 18;
+    const MAX_LAST = 13;
+
+    const pages: typeof sortedTeacherSummaries[] = [];
+
+    // Jika total guru 11 s.d. 25 guru (cukup 2 lembar F4)
+    if (total <= MAX_P1 + MAX_LAST) {
+      const p1Count = Math.min(MAX_P1, Math.ceil(total / 2));
+      pages.push(sortedTeacherSummaries.slice(0, p1Count));
+      pages.push(sortedTeacherSummaries.slice(p1Count));
+      return pages;
     }
+
+    // Untuk total guru >= 26 (misal 36 guru harian, atau 50-60+ guru saat rekap bulanan):
+    // Halaman 1 selalu mengambil MAX_P1 (12 guru)
+    pages.push(sortedTeacherSummaries.slice(0, MAX_P1));
+    let remaining = sortedTeacherSummaries.slice(MAX_P1);
+
+    while (remaining.length > 0) {
+      if (remaining.length <= MAX_LAST) {
+        // Halaman terakhir muat langsung
+        pages.push(remaining);
+        break;
+      }
+
+      // Jika sisa dapat ditampung dalam 2 halaman terakhir (1 intermediate + 1 last)
+      if (remaining.length <= MAX_INTERMEDIATE + MAX_LAST) {
+        // Bagi secara proporsional dan seimbang agar halaman terakhir tidak kosong/terlalu sedikit
+        const pLastCount = Math.min(MAX_LAST, Math.ceil(remaining.length / 2));
+        const pMidCount = remaining.length - pLastCount;
+        pages.push(remaining.slice(0, pMidCount));
+        pages.push(remaining.slice(pMidCount));
+        break;
+      }
+
+      // Masih banyak guru tersisa (> 31 guru tersisa)
+      pages.push(remaining.slice(0, MAX_INTERMEDIATE));
+      remaining = remaining.slice(MAX_INTERMEDIATE);
+    }
+
     return pages;
   }, [sortedTeacherSummaries]);
 
   const getRowGlobalIndex = (pageIdx: number, itemIdx: number) => {
-    if (pageIdx === 0) return itemIdx + 1;
-    let count = 20;
-    for (let p = 1; p < pageIdx; p++) {
+    let count = 0;
+    for (let p = 0; p < pageIdx; p++) {
       count += summaryPages[p].length;
     }
     return count + itemIdx + 1;
@@ -284,41 +322,54 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
       const pdfWidth = 210;
       const pdfHeight = 330;
-      const margin = 8; // Margin tipis 8 mm (memaksimalkan ruang kertas dari tepi ke tepi)
-      const contentWidth = pdfWidth - (margin * 2); // 194 mm (penuh)
+      const margin = 10; // Margin standar dokumen dinas resmi (10 mm di setiap sisi kertas F4)
+      const maxContentWidth = pdfWidth - (margin * 2); // 190 mm
+      const maxContentHeight = pdfHeight - (margin * 2); // 310 mm (menjamin ada ruang margin atas & bawah)
 
       if (pageElements.length > 0) {
         for (let i = 0; i < pageElements.length; i++) {
           const el = pageElements[i];
           const canvas = await renderDocumentToCanvas(el);
           const imgData = canvas.toDataURL('image/jpeg', 0.95);
-          const contentHeight = (canvas.height * contentWidth) / canvas.width;
+          
+          let renderWidth = maxContentWidth;
+          let renderHeight = (canvas.height * renderWidth) / canvas.width;
+
+          // Jika tinggi render melebihi batas printable height (310 mm), kecilkan secara proporsional agar pasti muat dan tidak pernah terpotong di tepi bawah!
+          if (renderHeight > maxContentHeight) {
+            const scale = maxContentHeight / renderHeight;
+            renderHeight = maxContentHeight;
+            renderWidth = renderWidth * scale;
+          }
+
+          const xPos = margin + (maxContentWidth - renderWidth) / 2;
+          const yPos = margin;
 
           if (i > 0) {
             pdf.addPage([210, 330], 'portrait');
           }
-          pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight);
+          pdf.addImage(imgData, 'JPEG', xPos, yPos, renderWidth, renderHeight);
         }
       } else {
         const canvas = await renderDocumentToCanvas(printAreaRef.current);
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        const maxTargetHeight = pdfHeight - (margin * 2);
-        const contentHeight = (canvas.height * contentWidth) / canvas.width;
+        let renderWidth = maxContentWidth;
+        let renderHeight = (canvas.height * renderWidth) / canvas.width;
 
-        if (contentHeight <= maxTargetHeight) {
-          pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight);
+        if (renderHeight <= maxContentHeight) {
+          pdf.addImage(imgData, 'JPEG', margin, margin, renderWidth, renderHeight);
         } else {
-          let heightLeft = contentHeight;
+          let heightLeft = renderHeight;
           let position = margin;
 
-          pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
-          heightLeft -= maxTargetHeight;
+          pdf.addImage(imgData, 'JPEG', margin, position, renderWidth, renderHeight);
+          heightLeft -= maxContentHeight;
 
           while (heightLeft > 0) {
             pdf.addPage([210, 330], 'portrait');
-            position = margin - (contentHeight - heightLeft);
-            pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
-            heightLeft -= maxTargetHeight;
+            position = margin - (renderHeight - heightLeft);
+            pdf.addImage(imgData, 'JPEG', margin, position, renderWidth, renderHeight);
+            heightLeft -= maxContentHeight;
           }
         }
       }
@@ -615,200 +666,202 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                   return (
                     <div 
                       key={pageIdx} 
-                      className="pdf-report-page bg-white p-5 sm:p-7 rounded-sm shadow-md mx-auto text-slate-900 font-sans print:p-0 print:shadow-none print:max-w-none mb-6 print:mb-0 print-page-break"
-                      style={{ width: '100%', maxWidth: '210mm' }}
+                      className="pdf-report-page bg-white p-5 sm:p-6 rounded-sm shadow-md mx-auto text-slate-900 font-sans print:p-0 print:shadow-none print:max-w-none mb-6 print:mb-0 print-page-break flex flex-col justify-between"
+                      style={{ width: '100%', maxWidth: '210mm', minHeight: '330mm', boxSizing: 'border-box' }}
                     >
-                      {/* Kop Surat (Halaman 1: Lengkap Resmi; Halaman berikutnya: Kop Lanjutan Ringkas) */}
-                      {isFirstPage ? (
-                        <>
-                          <div className="border-b-[3px] border-double border-slate-900 pb-2 mb-3">
-                            <div className="flex items-center justify-between gap-3">
-                              {/* Logo Kiri: Madrasah */}
-                              <div className="w-16 h-16 sm:w-18 sm:h-18 flex-shrink-0 flex justify-center items-center">
-                                <img
-                                  src={base64Madrasah || parseDirectImageUrl(logoMadrasah)}
-                                  alt="Logo Madrasah"
-                                  crossOrigin="anonymous"
-                                  referrerPolicy="no-referrer"
-                                  className="w-14 h-14 sm:w-16 sm:h-16 object-contain select-none"
-                                  onError={(e) => {
-                                    e.currentTarget.src = APP_CONFIG.DEFAULT_LOGO_URL;
-                                  }}
-                                />
+                      <div className="flex-1">
+                        {/* Kop Surat (Halaman 1: Lengkap Resmi; Halaman berikutnya: Kop Lanjutan Ringkas) */}
+                        {isFirstPage ? (
+                          <>
+                            <div className="border-b-[3px] border-double border-slate-900 pb-2 mb-3">
+                              <div className="flex items-center justify-between gap-3">
+                                {/* Logo Kiri: Madrasah */}
+                                <div className="w-16 h-16 sm:w-18 sm:h-18 flex-shrink-0 flex justify-center items-center">
+                                  <img
+                                    src={base64Madrasah || parseDirectImageUrl(logoMadrasah)}
+                                    alt="Logo Madrasah"
+                                    crossOrigin="anonymous"
+                                    referrerPolicy="no-referrer"
+                                    className="w-14 h-14 sm:w-16 sm:h-16 object-contain select-none"
+                                    onError={(e) => {
+                                      e.currentTarget.src = APP_CONFIG.DEFAULT_LOGO_URL;
+                                    }}
+                                  />
+                                </div>
+
+                                {/* Kop Teks Tengah */}
+                                <div className="flex-1 text-center leading-tight px-1 overflow-hidden">
+                                  <h4 className="text-xs sm:text-sm font-bold tracking-wider text-slate-800 uppercase">
+                                    {yayasanName}
+                                  </h4>
+                                  <h2 className="text-sm sm:text-base md:text-lg font-black text-sky-950 tracking-tight uppercase my-0.5">
+                                    {lembagaName}
+                                  </h2>
+                                  <p className="text-[11px] text-slate-700 font-semibold">
+                                    {identitasName}
+                                  </p>
+                                  <p className="text-[10px] text-slate-600">
+                                    {alamatName}
+                                  </p>
+                                </div>
+
+                                {/* Logo Kanan: SIRAMA */}
+                                <div className="w-16 h-16 sm:w-18 sm:h-18 flex-shrink-0 flex justify-center items-center">
+                                  <img
+                                    src={base64Sirama || parseDirectImageUrl(logoSirama)}
+                                    alt="Logo SIRAMA"
+                                    crossOrigin="anonymous"
+                                    referrerPolicy="no-referrer"
+                                    className="w-14 h-14 sm:w-16 sm:h-16 object-contain select-none"
+                                    onError={(e) => {
+                                      e.currentTarget.src = APP_CONFIG.DEFAULT_LOGO_SIRAMA_URL;
+                                    }}
+                                  />
+                                </div>
                               </div>
+                            </div>
 
-                              {/* Kop Teks Tengah */}
-                              <div className="flex-1 text-center leading-tight px-1 overflow-hidden">
-                                <h4 className="text-xs sm:text-sm font-bold tracking-wider text-slate-800 uppercase">
-                                  {yayasanName}
-                                </h4>
-                                <h2 className="text-sm sm:text-base md:text-lg font-black text-sky-950 tracking-tight uppercase my-0.5">
-                                  {lembagaName}
-                                </h2>
-                                <p className="text-[11px] text-slate-700 font-semibold">
-                                  {identitasName}
-                                </p>
-                                <p className="text-[10px] text-slate-600">
-                                  {alamatName}
-                                </p>
+                            {/* Judul Laporan */}
+                            <div className="text-center my-2">
+                              <h3 className="text-sm sm:text-base font-black uppercase tracking-wide text-slate-900 underline decoration-slate-900 decoration-1 underline-offset-4">
+                                {judulLaporan}
+                              </h3>
+                              <p className="text-xs font-bold text-slate-700 mt-0.5">
+                                Periode: {periodeText} {totalPages > 1 && `(Halaman 1 dari ${totalPages})`}
+                              </p>
+                            </div>
+
+                            {/* Ringkasan Metrik */}
+                            <div className="my-2 bg-slate-50 border border-slate-300 p-2 rounded text-xs grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              <div>
+                                <span className="text-slate-500 block text-[11px] font-medium">Total Sesi KBM:</span>
+                                <strong className="text-slate-900 text-sm font-black">{stats.total} Sesi</strong>
                               </div>
-
-                              {/* Logo Kanan: SIRAMA */}
-                              <div className="w-16 h-16 sm:w-18 sm:h-18 flex-shrink-0 flex justify-center items-center">
-                                <img
-                                  src={base64Sirama || parseDirectImageUrl(logoSirama)}
-                                  alt="Logo SIRAMA"
-                                  crossOrigin="anonymous"
-                                  referrerPolicy="no-referrer"
-                                  className="w-14 h-14 sm:w-16 sm:h-16 object-contain select-none"
-                                  onError={(e) => {
-                                    e.currentTarget.src = APP_CONFIG.DEFAULT_LOGO_SIRAMA_URL;
-                                  }}
-                                />
+                              <div>
+                                <span className="text-slate-500 block text-[11px] font-medium">Tingkat Kehadiran:</span>
+                                <strong className="text-emerald-700 text-sm font-black">{stats.persentase}% ({stats.hadirEfektif} Sesi)</strong>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 block text-[11px] font-medium">Izin / Sakit / Alpha:</span>
+                                <strong className="text-slate-900 text-sm font-black">{stats.izin} I / {stats.sakit} S / {stats.alpa} A</strong>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 block text-[11px] font-medium">Tugas Dinas:</span>
+                                <strong className="text-indigo-700 text-sm font-black">{stats.tugasDinas} TD</strong>
                               </div>
                             </div>
+                          </>
+                        ) : (
+                          // Header Halaman Lanjutan (Kop Lanjutan Resmi)
+                          <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2 mb-3">
+                            <div className="flex items-center gap-2.5">
+                              <img
+                                src={base64Madrasah || parseDirectImageUrl(logoMadrasah)}
+                                alt="Logo Madrasah"
+                                className="w-8 h-8 object-contain"
+                                onError={(e) => { e.currentTarget.src = APP_CONFIG.DEFAULT_LOGO_URL; }}
+                              />
+                              <div>
+                                <h4 className="text-xs font-black uppercase text-sky-950 tracking-tight">{lembagaName}</h4>
+                                <p className="text-[11px] text-slate-700 font-bold">{judulLaporan} (Lanjutan)</p>
+                              </div>
+                            </div>
+                            <div className="text-right text-xs font-bold text-slate-700">
+                              Periode: {periodeText} • <span className="text-sky-800">Hal. {pageIdx + 1} dari {totalPages}</span>
+                            </div>
                           </div>
+                        )}
 
-                          {/* Judul Laporan */}
-                          <div className="text-center my-2.5">
-                            <h3 className="text-sm sm:text-base font-black uppercase tracking-wide text-slate-900 underline decoration-slate-900 decoration-1 underline-offset-4">
-                              {judulLaporan}
-                            </h3>
-                            <p className="text-xs font-bold text-slate-700 mt-0.5">
-                              Periode: {periodeText} {totalPages > 1 && `(Halaman 1 dari ${totalPages})`}
-                            </p>
-                          </div>
-
-                          {/* Ringkasan Metrik */}
-                          <div className="my-2.5 bg-slate-50 border border-slate-300 p-2.5 rounded text-xs grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            <div>
-                              <span className="text-slate-500 block text-[11px] font-medium">Total Sesi KBM:</span>
-                              <strong className="text-slate-900 text-sm font-black">{stats.total} Sesi</strong>
-                            </div>
-                            <div>
-                              <span className="text-slate-500 block text-[11px] font-medium">Tingkat Kehadiran:</span>
-                              <strong className="text-emerald-700 text-sm font-black">{stats.persentase}% ({stats.hadirEfektif} Sesi)</strong>
-                            </div>
-                            <div>
-                              <span className="text-slate-500 block text-[11px] font-medium">Izin / Sakit / Alpha:</span>
-                              <strong className="text-slate-900 text-sm font-black">{stats.izin} I / {stats.sakit} S / {stats.alpa} A</strong>
-                            </div>
-                            <div>
-                              <span className="text-slate-500 block text-[11px] font-medium">Tugas Dinas:</span>
-                              <strong className="text-indigo-700 text-sm font-black">{stats.tugasDinas} TD</strong>
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        // Header Halaman Lanjutan (Kop Lanjutan Resmi)
-                        <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2 mb-3">
-                          <div className="flex items-center gap-2.5">
-                            <img
-                              src={base64Madrasah || parseDirectImageUrl(logoMadrasah)}
-                              alt="Logo Madrasah"
-                              className="w-9 h-9 object-contain"
-                              onError={(e) => { e.currentTarget.src = APP_CONFIG.DEFAULT_LOGO_URL; }}
-                            />
-                            <div>
-                              <h4 className="text-xs font-black uppercase text-sky-950 tracking-tight">{lembagaName}</h4>
-                              <p className="text-[11px] text-slate-700 font-bold">{judulLaporan} (Lanjutan)</p>
-                            </div>
-                          </div>
-                          <div className="text-right text-xs font-bold text-slate-700">
-                            Periode: {periodeText} • <span className="text-sky-800">Hal. {pageIdx + 1} dari {totalPages}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Tabel Data Rekapitulasi Presensi Per Guru */}
-                      <div className="my-2 overflow-x-auto">
-                        <table className="w-full text-left border-collapse border-2 border-slate-900 text-xs">
-                          <thead>
-                            <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b-2 border-slate-900">
-                              <th className="border border-slate-800 py-2 px-1 w-12 text-center text-xs">Nomor</th>
-                              <th className="border border-slate-800 py-2 px-3 text-left text-xs">Nama</th>
-                              <th className="border border-slate-800 py-2 px-1 w-28 text-center text-xs">Total Sesi / Wajib Hadir</th>
-                              <th className="border border-slate-800 py-2 px-1 w-16 text-center text-xs">Hadir</th>
-                              <th className="border border-slate-800 py-2 px-1 w-14 text-center text-xs">Izin</th>
-                              <th className="border border-slate-800 py-2 px-1 w-14 text-center text-xs">Sakit</th>
-                              <th className="border border-slate-800 py-2 px-1 w-14 text-center text-xs">Alpha</th>
-                              <th className="border border-slate-800 py-2 px-1 w-20 text-center text-xs">Tugas Dinas</th>
-                              <th className="border border-slate-800 py-2 px-1 w-24 text-center text-xs">Persentase Kehadiran</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {pageItems.length === 0 ? (
-                              <tr>
-                                <td colSpan={9} className="border border-slate-800 py-6 text-center text-slate-500 font-medium italic text-xs">
-                                  Tidak ada data presensi guru pada periode ini ({periodeText}).
-                                </td>
+                        {/* Tabel Data Rekapitulasi Presensi Per Guru */}
+                        <div className="my-2 overflow-x-auto">
+                          <table className="w-full text-left border-collapse border-2 border-slate-900 text-xs">
+                            <thead>
+                              <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b-2 border-slate-900">
+                                <th className="border border-slate-800 py-2 px-1 w-12 text-center text-xs">Nomor</th>
+                                <th className="border border-slate-800 py-2 px-3 text-left text-xs">Nama</th>
+                                <th className="border border-slate-800 py-2 px-1 w-28 text-center text-xs">Total Sesi / Wajib Hadir</th>
+                                <th className="border border-slate-800 py-2 px-1 w-16 text-center text-xs">Hadir</th>
+                                <th className="border border-slate-800 py-2 px-1 w-14 text-center text-xs">Izin</th>
+                                <th className="border border-slate-800 py-2 px-1 w-14 text-center text-xs">Sakit</th>
+                                <th className="border border-slate-800 py-2 px-1 w-14 text-center text-xs">Alpha</th>
+                                <th className="border border-slate-800 py-2 px-1 w-20 text-center text-xs">Tugas Dinas</th>
+                                <th className="border border-slate-800 py-2 px-1 w-24 text-center text-xs">Persentase Kehadiran</th>
                               </tr>
-                            ) : (
-                              pageItems.map((ts, itemIdx) => {
-                                const globalNo = getRowGlobalIndex(pageIdx, itemIdx);
-                                const wajibHadir = ts.totalSesi;
-                                const kehadiran = ts.hadir + ts.tugasDinas;
-                                const persentase = wajibHadir > 0 ? Math.round((kehadiran / wajibHadir) * 100) : 0;
+                            </thead>
+                            <tbody>
+                              {pageItems.length === 0 ? (
+                                <tr>
+                                  <td colSpan={9} className="border border-slate-800 py-6 text-center text-slate-500 font-medium italic text-xs">
+                                    Tidak ada data presensi guru pada periode ini ({periodeText}).
+                                  </td>
+                                </tr>
+                              ) : (
+                                pageItems.map((ts, itemIdx) => {
+                                  const globalNo = getRowGlobalIndex(pageIdx, itemIdx);
+                                  const wajibHadir = ts.totalSesi;
+                                  const kehadiran = ts.hadir + ts.tugasDinas;
+                                  const persentase = wajibHadir > 0 ? Math.round((kehadiran / wajibHadir) * 100) : 0;
 
-                                return (
-                                  <tr key={ts.nama} className="border-b border-slate-300 even:bg-slate-50/60">
-                                    <td className="border border-slate-800 py-2 px-1 text-center font-bold text-xs">{globalNo}</td>
-                                    <td className="border border-slate-800 py-2 px-3 font-bold text-slate-900 text-xs sm:text-[12.5px]">{ts.nama}</td>
-                                    <td className="border border-slate-800 py-2 px-1 text-center font-extrabold text-sm sm:text-base bg-slate-50/80">{wajibHadir}</td>
-                                    <td className="border border-slate-800 py-2 px-1 text-center font-extrabold text-sm sm:text-base text-emerald-800 bg-emerald-50/20">{ts.hadir}</td>
-                                    <td className="border border-slate-800 py-2 px-1 text-center font-bold text-sm text-blue-800">{ts.izin || 0}</td>
-                                    <td className="border border-slate-800 py-2 px-1 text-center font-bold text-sm text-amber-800">{ts.sakit || 0}</td>
-                                    <td className={`border border-slate-800 py-2 px-1 text-center font-extrabold text-sm ${ts.alpa > 0 ? 'text-rose-700 bg-rose-50/40' : 'text-slate-700'}`}>
-                                      {ts.alpa || 0}
-                                    </td>
-                                    <td className="border border-slate-800 py-2 px-1 text-center font-bold text-sm text-indigo-800">{ts.tugasDinas || 0}</td>
-                                    <td className="border border-slate-800 py-2 px-1 text-center font-black text-sm sm:text-base bg-sky-50 text-sky-950">
-                                      {persentase}%
-                                    </td>
-                                  </tr>
-                                );
-                              })
+                                  return (
+                                    <tr key={ts.nama} className="border-b border-slate-300 even:bg-slate-50/60">
+                                      <td className="border border-slate-800 py-2 px-1 text-center font-bold text-xs">{globalNo}</td>
+                                      <td className="border border-slate-800 py-2 px-3 font-bold text-slate-900 text-xs sm:text-[13px]">{ts.nama}</td>
+                                      <td className="border border-slate-800 py-2 px-1 text-center font-extrabold text-sm sm:text-base bg-slate-50/80">{wajibHadir}</td>
+                                      <td className="border border-slate-800 py-2 px-1 text-center font-extrabold text-sm sm:text-base text-emerald-800 bg-emerald-50/20">{ts.hadir}</td>
+                                      <td className="border border-slate-800 py-2 px-1 text-center font-bold text-sm sm:text-base text-blue-800">{ts.izin || 0}</td>
+                                      <td className="border border-slate-800 py-2 px-1 text-center font-bold text-sm sm:text-base text-amber-800">{ts.sakit || 0}</td>
+                                      <td className={`border border-slate-800 py-2 px-1 text-center font-extrabold text-sm sm:text-base ${ts.alpa > 0 ? 'text-rose-700 bg-rose-50/40' : 'text-slate-700'}`}>
+                                        {ts.alpa || 0}
+                                      </td>
+                                      <td className="border border-slate-800 py-2 px-1 text-center font-bold text-sm sm:text-base text-indigo-800">{ts.tugasDinas || 0}</td>
+                                      <td className="border border-slate-800 py-2 px-1 text-center font-black text-sm sm:text-base bg-sky-50 text-sky-950">
+                                        {persentase}%
+                                      </td>
+                                    </tr>
+                                  );
+                                })
+                              )}
+                            </tbody>
+
+                            {/* Footer Total hanya di lembar halaman terakhir */}
+                            {isLastPage && sortedTeacherSummaries.length > 0 && (
+                              <tfoot>
+                                <tr className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-900">
+                                  <td colSpan={2} className="border border-slate-800 py-2.5 px-3 text-center uppercase tracking-wider text-xs font-black">
+                                    TOTAL REKAPITULASI
+                                  </td>
+                                  <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black bg-slate-200/60">{totalWajibHadir}</td>
+                                  <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black text-emerald-800">{totalHadir}</td>
+                                  <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black">{totalIzin}</td>
+                                  <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black">{totalSakit}</td>
+                                  <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black text-rose-700">{totalAlpa}</td>
+                                  <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black">{totalTugasDinas}</td>
+                                  <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black bg-sky-100 text-sky-950">
+                                    {overallPercentage}%
+                                  </td>
+                                </tr>
+                              </tfoot>
                             )}
-                          </tbody>
-
-                          {/* Footer Total hanya di lembar halaman terakhir */}
-                          {isLastPage && sortedTeacherSummaries.length > 0 && (
-                            <tfoot>
-                              <tr className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-900">
-                                <td colSpan={2} className="border border-slate-800 py-2.5 px-3 text-center uppercase tracking-wider text-xs font-black">
-                                  TOTAL REKAPITULASI
-                                </td>
-                                <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black bg-slate-200/60">{totalWajibHadir}</td>
-                                <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black text-emerald-800">{totalHadir}</td>
-                                <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black">{totalIzin}</td>
-                                <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black">{totalSakit}</td>
-                                <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black text-rose-700">{totalAlpa}</td>
-                                <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black">{totalTugasDinas}</td>
-                                <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black bg-sky-100 text-sky-950">
-                                  {overallPercentage}%
-                                </td>
-                              </tr>
-                            </tfoot>
-                          )}
-                        </table>
+                          </table>
+                        </div>
                       </div>
 
                       {/* Notasi bersambung jika bukan halaman terakhir */}
                       {!isLastPage && (
-                        <div className="text-right text-xs font-semibold text-slate-500 mt-2 italic">
+                        <div className="text-right text-xs font-semibold text-slate-500 mt-auto pt-3 pb-2 italic">
                           Bersambung ke Halaman {pageIdx + 2}...
                         </div>
                       )}
 
                       {/* Blok Tanda Tangan Resmi di Halaman Terakhir */}
                       {isLastPage && (
-                        <div className="mt-8 pt-2 break-inside-avoid text-xs">
+                        <div className="mt-auto pt-6 pb-2 break-inside-avoid text-xs">
                           <div className="flex justify-between items-start">
                             {/* Waka / Staff Kurikulum */}
                             <div className="text-center w-60">
                               <p className="text-slate-600 mb-1 font-medium">Mengetahui,</p>
                               <p className="font-bold text-slate-900 text-xs">{staffJabatan}</p>
-                              <div className="h-16" />
+                              <div className="h-14" />
                               <p className="font-bold text-slate-900 underline underline-offset-2 text-xs">
                                 {staffName}
                               </p>
@@ -820,7 +873,7 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
                                 {kotaName}, {todayStr}
                               </p>
                               <p className="font-bold text-slate-900 text-xs">{kepalaJabatan}</p>
-                              <div className="h-16" />
+                              <div className="h-14" />
                               <p className="font-bold text-slate-900 underline underline-offset-2 text-xs">
                                 {kepalaName}
                               </p>

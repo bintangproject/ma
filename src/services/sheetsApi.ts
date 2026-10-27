@@ -50,13 +50,19 @@ export async function sendGasRequest(
     const res = await fetch(proxyUrl.toString(), options);
     if (res.ok) {
       const text = await res.text();
-      let data: any = null;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        data = null;
+      // Ensure the proxy returned real data, not an HTML error or SPA fallback
+      if (text && !text.trim().startsWith('<')) {
+        let data: any = null;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = null;
+        }
+        if (data !== null) {
+          return { ok: true, status: res.status, text, data };
+        }
       }
-      return { ok: true, status: res.status, text, data };
+      console.warn('Proxy returned HTML/non-JSON, trying direct browser fetch...');
     }
   } catch (proxyError) {
     console.warn('Proxy /api/gas-proxy attempt failed or unavailable, falling back to direct fetch:', proxyError);
@@ -83,10 +89,12 @@ export async function sendGasRequest(
   const directRes = await fetch(target.toString(), directOptions);
   const text = await directRes.text();
   let data: any = null;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    data = null;
+  if (text && !text.trim().startsWith('<')) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
   }
   return { ok: directRes.ok, status: directRes.status, text, data };
 }
@@ -105,11 +113,28 @@ export async function fetchFromGoogleSheets(gasUrl: string): Promise<GasSyncResp
   try {
     const response = await sendGasRequest(gasUrl, 'GET');
 
-    if (!response.ok && !response.data) {
-      throw new Error(`HTTP Error ${response.status}: ${response.text || 'Gagal memuat'}`);
+    let json = response.data;
+    if (!json && response.text) {
+      const trimmed = response.text.trim();
+      if (trimmed.startsWith('<')) {
+        return {
+          success: false,
+          message: 'Akses Google Spreadsheet memerlukan login atau izin publik belum dibuka. Pastikan pengaturan deployment Web App di Apps Script disetel: "Siapa saja" (Anyone) memiliki akses.',
+        };
+      }
+      try {
+        json = JSON.parse(trimmed);
+      } catch {
+        json = null;
+      }
     }
 
-    const json = response.data || JSON.parse(response.text);
+    if (!json) {
+      return {
+        success: false,
+        message: `Gagal membaca data dari Google Spreadsheet (Status ${response.status || 'Error'}). Silakan coba beberapa saat lagi.`,
+      };
+    }
     if (json.status === 'success' || json.success === true) {
       // Normalize config keys from Google Sheets (handles lowercase, uppercase, spaces)
       const rawConfig = json.config || {};
