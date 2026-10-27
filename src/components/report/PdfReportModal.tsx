@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Modal } from '../common/Modal';
 import { AttendanceRecord, InstitutionConfig, FilterState, MasterGuru } from '../../types/attendance';
 import { MadarLogo, parseDirectImageUrl, getAlternateRawUrl } from '../common/MadarLogo';
@@ -64,6 +64,36 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
   const overallPercentage = totalWajibHadir > 0 
     ? Math.round((totalKehadiranEfektif / totalWajibHadir) * 100) 
     : 0;
+
+  // Helper membagi daftar guru ke lembar-lembar F4:
+  // - Jika <= 18 guru: muat pas dalam 1 lembar F4 lengkap dengan Kop, Judul, Metrik, Tabel, Total, & Tanda Tangan
+  // - Jika > 18 guru: Halaman 1 memuat Kop, Judul, Metrik, dan 20 guru. Halaman berikutnya memuat 22 guru (jika ada tanda tangan) atau 26 guru.
+  const summaryPages = useMemo(() => {
+    if (sortedTeacherSummaries.length === 0) return [[]];
+    if (sortedTeacherSummaries.length <= 18) {
+      return [sortedTeacherSummaries];
+    }
+    const pages: typeof sortedTeacherSummaries[] = [];
+    pages.push(sortedTeacherSummaries.slice(0, 20));
+
+    let offset = 20;
+    while (offset < sortedTeacherSummaries.length) {
+      const remaining = sortedTeacherSummaries.length - offset;
+      const chunkSize = remaining <= 22 ? 22 : 26;
+      pages.push(sortedTeacherSummaries.slice(offset, offset + chunkSize));
+      offset += chunkSize;
+    }
+    return pages;
+  }, [sortedTeacherSummaries]);
+
+  const getRowGlobalIndex = (pageIdx: number, itemIdx: number) => {
+    if (pageIdx === 0) return itemIdx + 1;
+    let count = 20;
+    for (let p = 1; p < pageIdx; p++) {
+      count += summaryPages[p].length;
+    }
+    return count + itemIdx + 1;
+  };
 
   const periodeText = filterState.startDate === filterState.endDate
     ? formatIndonesianDate(filterState.startDate)
@@ -243,10 +273,9 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
     setIsExportingPdf(true);
 
     try {
-      const canvas = await renderDocumentToCanvas(printAreaRef.current);
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      
-      // Standar Kertas F4 (Folio): 210 mm x 330 mm
+      // Jika dokumen memiliki pembagian halaman (.pdf-report-page), render tiap halaman secara terpisah dengan lebar penuh
+      const pageElements = Array.from(printAreaRef.current.querySelectorAll<HTMLElement>('.pdf-report-page'));
+
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -255,39 +284,41 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
 
       const pdfWidth = 210;
       const pdfHeight = 330;
-      const margin = 8;
-      const contentWidth = pdfWidth - (margin * 2); // 194 mm
-      const maxTargetHeight = pdfHeight - (margin * 2); // 314 mm
-      const contentHeight = (canvas.height * contentWidth) / canvas.width;
+      const margin = 8; // Margin tipis 8 mm (memaksimalkan ruang kertas dari tepi ke tepi)
+      const contentWidth = pdfWidth - (margin * 2); // 194 mm (penuh)
 
-      if (reportType === 'summary') {
-        // Rekap Per Guru diusahakan rapi dan muat pas dalam 1 lembar F4
-        if (contentHeight <= maxTargetHeight) {
+      if (pageElements.length > 0) {
+        for (let i = 0; i < pageElements.length; i++) {
+          const el = pageElements[i];
+          const canvas = await renderDocumentToCanvas(el);
+          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+          const contentHeight = (canvas.height * contentWidth) / canvas.width;
+
+          if (i > 0) {
+            pdf.addPage([210, 330], 'portrait');
+          }
           pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight);
-        } else {
-          // Skalakan proporsional agar presisi dalam 1 lembar F4 tanpa terpotong
-          const scale = maxTargetHeight / contentHeight;
-          const scaledWidth = contentWidth * scale;
-          const scaledX = margin + (contentWidth - scaledWidth) / 2;
-          pdf.addImage(imgData, 'JPEG', scaledX, margin, scaledWidth, maxTargetHeight);
         }
       } else {
-        // Multi-halaman F4 untuk log rinci
+        const canvas = await renderDocumentToCanvas(printAreaRef.current);
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const maxTargetHeight = pdfHeight - (margin * 2);
+        const contentHeight = (canvas.height * contentWidth) / canvas.width;
+
         if (contentHeight <= maxTargetHeight) {
           pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight);
         } else {
-          const pageContentHeight = maxTargetHeight;
           let heightLeft = contentHeight;
           let position = margin;
 
           pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
-          heightLeft -= pageContentHeight;
+          heightLeft -= maxTargetHeight;
 
           while (heightLeft > 0) {
             pdf.addPage([210, 330], 'portrait');
             position = margin - (contentHeight - heightLeft);
             pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
-            heightLeft -= pageContentHeight;
+            heightLeft -= maxTargetHeight;
           }
         }
       }
@@ -356,10 +387,19 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               font-family: Arial, sans-serif;
               color: #000 !important;
               background: #fff !important;
-              font-size: 10px;
+              font-size: 11px;
             }
-            .print-page-break {
+            .pdf-report-page {
               page-break-after: always;
+              break-after: page;
+              margin-bottom: 0 !important;
+              box-shadow: none !important;
+              padding: 0 !important;
+              width: 100% !important;
+            }
+            .pdf-report-page:last-child {
+              page-break-after: auto;
+              break-after: auto;
             }
             table {
               width: 100%;
@@ -368,8 +408,8 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
               table-layout: fixed;
             }
             th, td {
-              border: 1px solid #000 !important;
-              padding: 4px;
+              border: 1px solid #1e293b !important;
+              padding: 5px 3px;
               word-wrap: break-word;
             }
             thead {
@@ -562,300 +602,424 @@ export const PdfReportModal: React.FC<PdfReportModalProps> = ({
           <div 
             id="official-print-document" 
             ref={printAreaRef}
-            className="bg-white p-5 sm:p-8 rounded-sm shadow-md mx-auto text-slate-900 font-sans print:p-0 print:shadow-none print:max-w-none"
-            style={{ width: '100%', maxWidth: '210mm' }}
+            className="w-full"
           >
-            {/* KOP SURAT RESMI MADRASAH (Logo Kiri: Madrasah, Logo Kanan: SIRAMA Web App) */}
-            <div className="border-b-[3px] border-double border-slate-900 pb-2 mb-3">
-              <div className="flex items-center justify-between gap-3">
-                {/* Logo Kiri: Logo Resmi Lembaga Madrasah */}
-                <div className="w-16 h-16 flex-shrink-0 flex justify-center items-center">
-                  <img
-                    src={base64Madrasah || parseDirectImageUrl(logoMadrasah)}
-                    alt="Logo Madrasah"
-                    crossOrigin="anonymous"
-                    referrerPolicy="no-referrer"
-                    className="w-14 h-14 object-contain select-none"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      const alt = getAlternateRawUrl(logoMadrasah);
-                      if (alt && target.src !== alt) {
-                        target.src = alt;
-                      } else {
-                        target.src = APP_CONFIG.DEFAULT_LOGO_URL;
-                      }
-                    }}
-                  />
-                </div>
-
-                {/* Kop Teks Tengah */}
-                <div className="flex-1 text-center leading-tight px-1 overflow-hidden">
-                  <h4 className="text-[10px] sm:text-[11px] font-bold tracking-wider text-slate-800 uppercase">
-                    {yayasanName}
-                  </h4>
-                  <h2 className="text-xs sm:text-sm md:text-base font-extrabold text-sky-950 tracking-tight uppercase my-0.5">
-                    {lembagaName}
-                  </h2>
-                  <p className="text-[9.5px] text-slate-700 font-medium">
-                    {identitasName}
-                  </p>
-                  <p className="text-[9px] text-slate-600">
-                    {alamatName}
-                  </p>
-                </div>
-
-                {/* Logo Kanan: Logo Web App SIRAMA */}
-                <div className="w-16 h-16 flex-shrink-0 flex justify-center items-center">
-                  <img
-                    src={base64Sirama || parseDirectImageUrl(logoSirama)}
-                    alt="Logo SIRAMA"
-                    crossOrigin="anonymous"
-                    referrerPolicy="no-referrer"
-                    className="w-14 h-14 object-contain select-none"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      const alt = getAlternateRawUrl(logoSirama);
-                      if (alt && target.src !== alt) {
-                        target.src = alt;
-                      } else {
-                        target.src = APP_CONFIG.DEFAULT_LOGO_SIRAMA_URL;
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* JUDUL LAPORAN */}
-            <div className="text-center my-2.5">
-              <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wide text-slate-900 underline decoration-slate-900 decoration-1 underline-offset-4">
-                {judulLaporan}
-              </h3>
-              <p className="text-[10.5px] font-semibold text-slate-700 mt-0.5">
-                Periode: {periodeText}
-              </p>
-            </div>
-
-            {/* RINGKASAN METRIK */}
-            <div className="my-2.5 bg-slate-50 border border-slate-300 p-2 rounded text-[10px] grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div>
-                <span className="text-slate-500 block">Total Sesi KBM:</span>
-                <strong className="text-slate-800">{stats.total} Sesi</strong>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Tingkat Kehadiran:</span>
-                <strong className="text-emerald-700">{stats.persentase}% ({stats.hadirEfektif} Sesi)</strong>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Izin / Sakit / Alpha:</span>
-                <strong className="text-slate-800">{stats.izin} I / {stats.sakit} S / {stats.alpa} A</strong>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Tugas Dinas:</span>
-                <strong className="text-indigo-700">{stats.tugasDinas} TD</strong>
-              </div>
-            </div>
-
-            {/* TABEL SESUAI PILIHAN MODEL */}
             {reportType === 'summary' ? (
-              // TABEL REKAP KEHADIRAN PER GURU (KONSOLIDASI 1 LEMBAR F4)
-              <div className="my-2.5 overflow-x-auto">
-                <table className="w-full text-left border-collapse border border-slate-800 text-[10px]">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b border-slate-800">
-                      <th className="border border-slate-800 py-1.5 px-1 w-9 text-center">Nomor</th>
-                      <th className="border border-slate-800 py-1.5 px-2 text-left">Nama</th>
-                      <th className="border border-slate-800 py-1.5 px-1 w-24 text-center">Total Sesi / Wajib Hadir</th>
-                      <th className="border border-slate-800 py-1.5 px-1 w-12 text-center">Hadir</th>
-                      <th className="border border-slate-800 py-1.5 px-1 w-11 text-center">Izin</th>
-                      <th className="border border-slate-800 py-1.5 px-1 w-11 text-center">Sakit</th>
-                      <th className="border border-slate-800 py-1.5 px-1 w-11 text-center">Alpha</th>
-                      <th className="border border-slate-800 py-1.5 px-1 w-16 text-center">Tugas Dinas</th>
-                      <th className="border border-slate-800 py-1.5 px-1 w-20 text-center">Persentase Kehadiran</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedTeacherSummaries.length === 0 ? (
-                      <tr>
-                        <td colSpan={9} className="border border-slate-800 py-4 text-center text-slate-500 italic">
-                          Tidak ada data presensi guru pada periode yang dipilih ({periodeText}).
-                        </td>
-                      </tr>
-                    ) : (
-                      sortedTeacherSummaries.map((ts, idx) => {
-                        const wajibHadir = ts.totalSesi;
-                        const kehadiran = ts.hadir + ts.tugasDinas;
-                        const persentase = wajibHadir > 0 ? Math.round((kehadiran / wajibHadir) * 100) : 0;
+              // TABEL REKAP KEHADIRAN PER GURU (MULTI-HALAMAN F4, LEBAR PENUH & TULISAN BESAR)
+              <div className="space-y-6 print:space-y-0">
+                {summaryPages.map((pageItems, pageIdx) => {
+                  const isFirstPage = pageIdx === 0;
+                  const isLastPage = pageIdx === summaryPages.length - 1;
+                  const totalPages = summaryPages.length;
 
-                        return (
-                          <tr key={ts.nama} className="border-b border-slate-300 even:bg-slate-50/50">
-                            <td className="border border-slate-800 py-1 px-1 text-center font-medium">{idx + 1}</td>
-                            <td className="border border-slate-800 py-1 px-2 font-semibold text-slate-900">{ts.nama}</td>
-                            <td className="border border-slate-800 py-1 px-1 text-center font-bold bg-slate-50/50">{wajibHadir}</td>
-                            <td className="border border-slate-800 py-1 px-1 text-center font-semibold text-emerald-800">{ts.hadir}</td>
-                            <td className="border border-slate-800 py-1 px-1 text-center">{ts.izin || 0}</td>
-                            <td className="border border-slate-800 py-1 px-1 text-center">{ts.sakit || 0}</td>
-                            <td className={`border border-slate-800 py-1 px-1 text-center font-bold ${ts.alpa > 0 ? 'text-rose-700' : 'text-slate-700'}`}>
-                              {ts.alpa || 0}
-                            </td>
-                            <td className="border border-slate-800 py-1 px-1 text-center">{ts.tugasDinas || 0}</td>
-                            <td className="border border-slate-800 py-1 px-1 text-center font-bold bg-sky-50/40 text-slate-900">
-                              {persentase}%
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                  {sortedTeacherSummaries.length > 0 && (
-                    <tfoot>
-                      <tr className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-800">
-                        <td colSpan={2} className="border border-slate-800 py-1.5 px-2 text-center uppercase tracking-wider text-[10px]">
-                          TOTAL REKAPITULASI
-                        </td>
-                        <td className="border border-slate-800 py-1.5 px-1 text-center">{totalWajibHadir}</td>
-                        <td className="border border-slate-800 py-1.5 px-1 text-center text-emerald-800">{totalHadir}</td>
-                        <td className="border border-slate-800 py-1.5 px-1 text-center">{totalIzin}</td>
-                        <td className="border border-slate-800 py-1.5 px-1 text-center">{totalSakit}</td>
-                        <td className="border border-slate-800 py-1.5 px-1 text-center text-rose-700">{totalAlpa}</td>
-                        <td className="border border-slate-800 py-1.5 px-1 text-center">{totalTugasDinas}</td>
-                        <td className="border border-slate-800 py-1.5 px-1 text-center bg-sky-100 text-sky-950 font-extrabold">
-                          {overallPercentage}%
-                        </td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
-              </div>
-            ) : reportType === 'detailed' ? (
-              // TABEL 2: LOG HARIAN / RINCI
-              <div className="my-4 overflow-x-auto">
-                {/* Header Judul Khusus untuk Tabel ini */}
-                <div className="text-center mb-4">
-                  <h3 className="text-sm font-bold uppercase underline">DAFTAR HADIR GURU - {filterState.selectedKelas || 'SEMUA KELAS'}</h3>
-                  <p className="text-xs font-semibold">Periode: {periodeText}</p>
-                </div>
+                  return (
+                    <div 
+                      key={pageIdx} 
+                      className="pdf-report-page bg-white p-5 sm:p-7 rounded-sm shadow-md mx-auto text-slate-900 font-sans print:p-0 print:shadow-none print:max-w-none mb-6 print:mb-0 print-page-break"
+                      style={{ width: '100%', maxWidth: '210mm' }}
+                    >
+                      {/* Kop Surat (Halaman 1: Lengkap Resmi; Halaman berikutnya: Kop Lanjutan Ringkas) */}
+                      {isFirstPage ? (
+                        <>
+                          <div className="border-b-[3px] border-double border-slate-900 pb-2 mb-3">
+                            <div className="flex items-center justify-between gap-3">
+                              {/* Logo Kiri: Madrasah */}
+                              <div className="w-16 h-16 sm:w-18 sm:h-18 flex-shrink-0 flex justify-center items-center">
+                                <img
+                                  src={base64Madrasah || parseDirectImageUrl(logoMadrasah)}
+                                  alt="Logo Madrasah"
+                                  crossOrigin="anonymous"
+                                  referrerPolicy="no-referrer"
+                                  className="w-14 h-14 sm:w-16 sm:h-16 object-contain select-none"
+                                  onError={(e) => {
+                                    e.currentTarget.src = APP_CONFIG.DEFAULT_LOGO_URL;
+                                  }}
+                                />
+                              </div>
 
-                <table className="w-full text-left border-collapse border border-slate-800 text-xs sm:text-sm">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b border-slate-800">
-                      <th className="border border-slate-800 py-3 px-2 w-10">No</th>
-                      <th className="border border-slate-800 py-3 px-3 w-28">Tanggal</th>
-                      <th className="border border-slate-800 py-3 px-4 text-left">Nama Guru</th>
-                      <th className="border border-slate-800 py-3 px-4 text-left">Mapel</th>
-                      <th className="border border-slate-800 py-3 px-3 w-20">Kelas</th>
-                      <th className="border border-slate-800 py-3 px-3 w-16">Jam</th>
-                      <th className="border border-slate-800 py-3 px-3 w-24">Status</th>
-                      <th className="border border-slate-800 py-3 px-4">Keterangan</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentRecords.map((r, idx) => (
-                      <tr key={r.id} className="border-b border-slate-300">
-                        <td className="border border-slate-800 py-3 px-2 text-center">{idx + 1}</td>
-                        <td className="border border-slate-800 py-3 px-3 text-center whitespace-nowrap">{formatIndonesianShortDate(r.tanggal)}</td>
-                        <td className="border border-slate-800 py-3 px-4 font-semibold">{r.namaGuru}</td>
-                        <td className="border border-slate-800 py-3 px-4">{r.mataPelajaran}</td>
-                        <td className="border border-slate-800 py-3 px-3 text-center font-bold bg-sky-50">{r.kelas}</td>
-                        <td className="border border-slate-800 py-3 px-3 text-center font-bold">Jam {r.jam}</td>
-                        <td className="border border-slate-800 py-3 px-3 text-center font-bold">
-                          {STATUS_CONFIG[r.status]?.label || r.status}
-                        </td>
-                        <td className="border border-slate-800 py-3 px-4 text-slate-600">{r.keterangan || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              // TABEL 3: BERITA ACARA KBM (Grouped by Kelas, 3 per row)
-              <div className="my-4">
-                <div className="text-center mb-4">
-                   <h2 className="text-lg font-bold">Berita Acara KBM MADAR</h2>
-                   <p className="text-sm">{periodeText}</p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {Object.entries(currentRecords.reduce((acc, r) => {
-                    if (!acc[r.kelas]) acc[r.kelas] = [];
-                    acc[r.kelas].push(r);
-                    return acc;
-                  }, {} as Record<string, AttendanceRecord[]>)).sort((a,b) => a[0].localeCompare(b[0])).map(([kelas, records], _, array) => {
-                    // Logic to center the last row if it has fewer than 3 items
-                    const isLastRow = array.length % 3 !== 0 && array.length - array.indexOf([kelas, records] as any) <= (array.length % 3);
-                    const wrapperClass = isLastRow && array.length % 3 !== 0 ? 'md:col-start-2' : '';
-                    
-                    return (
-                      <div key={kelas} className={`border border-slate-800 break-inside-avoid ${wrapperClass}`}>
-                        <h3 className="font-bold bg-slate-100 p-1 border-b border-slate-800 text-center text-xs">Kelas {kelas}</h3>
-                        <table className="w-full text-left border-collapse text-[9px]">
+                              {/* Kop Teks Tengah */}
+                              <div className="flex-1 text-center leading-tight px-1 overflow-hidden">
+                                <h4 className="text-xs sm:text-sm font-bold tracking-wider text-slate-800 uppercase">
+                                  {yayasanName}
+                                </h4>
+                                <h2 className="text-sm sm:text-base md:text-lg font-black text-sky-950 tracking-tight uppercase my-0.5">
+                                  {lembagaName}
+                                </h2>
+                                <p className="text-[11px] text-slate-700 font-semibold">
+                                  {identitasName}
+                                </p>
+                                <p className="text-[10px] text-slate-600">
+                                  {alamatName}
+                                </p>
+                              </div>
+
+                              {/* Logo Kanan: SIRAMA */}
+                              <div className="w-16 h-16 sm:w-18 sm:h-18 flex-shrink-0 flex justify-center items-center">
+                                <img
+                                  src={base64Sirama || parseDirectImageUrl(logoSirama)}
+                                  alt="Logo SIRAMA"
+                                  crossOrigin="anonymous"
+                                  referrerPolicy="no-referrer"
+                                  className="w-14 h-14 sm:w-16 sm:h-16 object-contain select-none"
+                                  onError={(e) => {
+                                    e.currentTarget.src = APP_CONFIG.DEFAULT_LOGO_SIRAMA_URL;
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Judul Laporan */}
+                          <div className="text-center my-2.5">
+                            <h3 className="text-sm sm:text-base font-black uppercase tracking-wide text-slate-900 underline decoration-slate-900 decoration-1 underline-offset-4">
+                              {judulLaporan}
+                            </h3>
+                            <p className="text-xs font-bold text-slate-700 mt-0.5">
+                              Periode: {periodeText} {totalPages > 1 && `(Halaman 1 dari ${totalPages})`}
+                            </p>
+                          </div>
+
+                          {/* Ringkasan Metrik */}
+                          <div className="my-2.5 bg-slate-50 border border-slate-300 p-2.5 rounded text-xs grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <div>
+                              <span className="text-slate-500 block text-[11px] font-medium">Total Sesi KBM:</span>
+                              <strong className="text-slate-900 text-sm font-black">{stats.total} Sesi</strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[11px] font-medium">Tingkat Kehadiran:</span>
+                              <strong className="text-emerald-700 text-sm font-black">{stats.persentase}% ({stats.hadirEfektif} Sesi)</strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[11px] font-medium">Izin / Sakit / Alpha:</span>
+                              <strong className="text-slate-900 text-sm font-black">{stats.izin} I / {stats.sakit} S / {stats.alpa} A</strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[11px] font-medium">Tugas Dinas:</span>
+                              <strong className="text-indigo-700 text-sm font-black">{stats.tugasDinas} TD</strong>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        // Header Halaman Lanjutan (Kop Lanjutan Resmi)
+                        <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2 mb-3">
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              src={base64Madrasah || parseDirectImageUrl(logoMadrasah)}
+                              alt="Logo Madrasah"
+                              className="w-9 h-9 object-contain"
+                              onError={(e) => { e.currentTarget.src = APP_CONFIG.DEFAULT_LOGO_URL; }}
+                            />
+                            <div>
+                              <h4 className="text-xs font-black uppercase text-sky-950 tracking-tight">{lembagaName}</h4>
+                              <p className="text-[11px] text-slate-700 font-bold">{judulLaporan} (Lanjutan)</p>
+                            </div>
+                          </div>
+                          <div className="text-right text-xs font-bold text-slate-700">
+                            Periode: {periodeText} • <span className="text-sky-800">Hal. {pageIdx + 1} dari {totalPages}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tabel Data Rekapitulasi Presensi Per Guru */}
+                      <div className="my-2 overflow-x-auto">
+                        <table className="w-full text-left border-collapse border-2 border-slate-900 text-xs">
                           <thead>
-                            <tr className="bg-slate-50 border-b border-slate-800">
-                              <th className="border-r border-slate-800 p-0.5 text-center">Jam</th>
-                              <th className="border-r border-slate-800 p-0.5">Mapel</th>
-                              <th className="border-r border-slate-800 p-0.5">Pengajar</th>
-                              <th className="p-0.5 text-center">Ket</th>
+                            <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b-2 border-slate-900">
+                              <th className="border border-slate-800 py-2 px-1 w-12 text-center text-xs">Nomor</th>
+                              <th className="border border-slate-800 py-2 px-3 text-left text-xs">Nama</th>
+                              <th className="border border-slate-800 py-2 px-1 w-28 text-center text-xs">Total Sesi / Wajib Hadir</th>
+                              <th className="border border-slate-800 py-2 px-1 w-16 text-center text-xs">Hadir</th>
+                              <th className="border border-slate-800 py-2 px-1 w-14 text-center text-xs">Izin</th>
+                              <th className="border border-slate-800 py-2 px-1 w-14 text-center text-xs">Sakit</th>
+                              <th className="border border-slate-800 py-2 px-1 w-14 text-center text-xs">Alpha</th>
+                              <th className="border border-slate-800 py-2 px-1 w-20 text-center text-xs">Tugas Dinas</th>
+                              <th className="border border-slate-800 py-2 px-1 w-24 text-center text-xs">Persentase Kehadiran</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {records.sort((a,b) => Number(a.jam) - Number(b.jam)).map(r => {
-                              let rowColor = '';
-                              if (r.status === 'ALPA') rowColor = 'bg-rose-200';
-                              else if (r.status === 'IZIN' || r.status === 'SAKIT') rowColor = 'bg-yellow-200';
-                              else if (r.status === 'TUGAS_DINAS') rowColor = 'bg-sky-200';
-                              
-                              const statusShort = r.status === 'HADIR' ? '' : 
-                                r.status === 'IZIN' ? 'I' : 
-                                r.status === 'SAKIT' ? 'S' : 
-                                r.status === 'ALPA' ? 'A' : 
-                                r.status === 'TUGAS_DINAS' ? 'TD' : r.status;
-                              
-                              return (
-                                <tr key={r.id} className={`border-b border-slate-200 last:border-b-0 ${rowColor}`}>
-                                  <td className="border-r border-slate-800 p-0.5 text-center">{r.jam}</td>
-                                  <td className="border-r border-slate-800 p-0.5 truncate max-w-[60px]" title={r.mataPelajaran}>{r.mataPelajaran}</td>
-                                  <td className="border-r border-slate-800 p-0.5 truncate max-w-[80px]" title={r.namaGuru}>{r.namaGuru}</td>
-                                  <td className="p-0.5 text-center font-bold">{statusShort}</td>
-                                </tr>
-                              );
-                            })}
+                            {pageItems.length === 0 ? (
+                              <tr>
+                                <td colSpan={9} className="border border-slate-800 py-6 text-center text-slate-500 font-medium italic text-xs">
+                                  Tidak ada data presensi guru pada periode ini ({periodeText}).
+                                </td>
+                              </tr>
+                            ) : (
+                              pageItems.map((ts, itemIdx) => {
+                                const globalNo = getRowGlobalIndex(pageIdx, itemIdx);
+                                const wajibHadir = ts.totalSesi;
+                                const kehadiran = ts.hadir + ts.tugasDinas;
+                                const persentase = wajibHadir > 0 ? Math.round((kehadiran / wajibHadir) * 100) : 0;
+
+                                return (
+                                  <tr key={ts.nama} className="border-b border-slate-300 even:bg-slate-50/60">
+                                    <td className="border border-slate-800 py-2 px-1 text-center font-bold text-xs">{globalNo}</td>
+                                    <td className="border border-slate-800 py-2 px-3 font-bold text-slate-900 text-xs sm:text-[12.5px]">{ts.nama}</td>
+                                    <td className="border border-slate-800 py-2 px-1 text-center font-extrabold text-sm sm:text-base bg-slate-50/80">{wajibHadir}</td>
+                                    <td className="border border-slate-800 py-2 px-1 text-center font-extrabold text-sm sm:text-base text-emerald-800 bg-emerald-50/20">{ts.hadir}</td>
+                                    <td className="border border-slate-800 py-2 px-1 text-center font-bold text-sm text-blue-800">{ts.izin || 0}</td>
+                                    <td className="border border-slate-800 py-2 px-1 text-center font-bold text-sm text-amber-800">{ts.sakit || 0}</td>
+                                    <td className={`border border-slate-800 py-2 px-1 text-center font-extrabold text-sm ${ts.alpa > 0 ? 'text-rose-700 bg-rose-50/40' : 'text-slate-700'}`}>
+                                      {ts.alpa || 0}
+                                    </td>
+                                    <td className="border border-slate-800 py-2 px-1 text-center font-bold text-sm text-indigo-800">{ts.tugasDinas || 0}</td>
+                                    <td className="border border-slate-800 py-2 px-1 text-center font-black text-sm sm:text-base bg-sky-50 text-sky-950">
+                                      {persentase}%
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            )}
                           </tbody>
+
+                          {/* Footer Total hanya di lembar halaman terakhir */}
+                          {isLastPage && sortedTeacherSummaries.length > 0 && (
+                            <tfoot>
+                              <tr className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-900">
+                                <td colSpan={2} className="border border-slate-800 py-2.5 px-3 text-center uppercase tracking-wider text-xs font-black">
+                                  TOTAL REKAPITULASI
+                                </td>
+                                <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black bg-slate-200/60">{totalWajibHadir}</td>
+                                <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black text-emerald-800">{totalHadir}</td>
+                                <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black">{totalIzin}</td>
+                                <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black">{totalSakit}</td>
+                                <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black text-rose-700">{totalAlpa}</td>
+                                <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black">{totalTugasDinas}</td>
+                                <td className="border border-slate-800 py-2.5 px-1 text-center text-sm font-black bg-sky-100 text-sky-950">
+                                  {overallPercentage}%
+                                </td>
+                              </tr>
+                            </tfoot>
+                          )}
                         </table>
                       </div>
-                    );
-                  })}
+
+                      {/* Notasi bersambung jika bukan halaman terakhir */}
+                      {!isLastPage && (
+                        <div className="text-right text-xs font-semibold text-slate-500 mt-2 italic">
+                          Bersambung ke Halaman {pageIdx + 2}...
+                        </div>
+                      )}
+
+                      {/* Blok Tanda Tangan Resmi di Halaman Terakhir */}
+                      {isLastPage && (
+                        <div className="mt-8 pt-2 break-inside-avoid text-xs">
+                          <div className="flex justify-between items-start">
+                            {/* Waka / Staff Kurikulum */}
+                            <div className="text-center w-60">
+                              <p className="text-slate-600 mb-1 font-medium">Mengetahui,</p>
+                              <p className="font-bold text-slate-900 text-xs">{staffJabatan}</p>
+                              <div className="h-16" />
+                              <p className="font-bold text-slate-900 underline underline-offset-2 text-xs">
+                                {staffName}
+                              </p>
+                            </div>
+
+                            {/* Kepala Madrasah */}
+                            <div className="text-center w-60">
+                              <p className="text-slate-600 mb-1 font-medium">
+                                {kotaName}, {todayStr}
+                              </p>
+                              <p className="font-bold text-slate-900 text-xs">{kepalaJabatan}</p>
+                              <div className="h-16" />
+                              <p className="font-bold text-slate-900 underline underline-offset-2 text-xs">
+                                {kepalaName}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              // TABEL DETAILED LOGS & BERITA ACARA
+              <div 
+                className="bg-white p-5 sm:p-8 rounded-sm shadow-md mx-auto text-slate-900 font-sans print:p-0 print:shadow-none print:max-w-none"
+                style={{ width: '100%', maxWidth: '210mm' }}
+              >
+                {/* KOP SURAT RESMI */}
+                <div className="border-b-[3px] border-double border-slate-900 pb-2 mb-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="w-16 h-16 flex-shrink-0 flex justify-center items-center">
+                      <img
+                        src={base64Madrasah || parseDirectImageUrl(logoMadrasah)}
+                        alt="Logo Madrasah"
+                        crossOrigin="anonymous"
+                        className="w-14 h-14 object-contain select-none"
+                        onError={(e) => { e.currentTarget.src = APP_CONFIG.DEFAULT_LOGO_URL; }}
+                      />
+                    </div>
+                    <div className="flex-1 text-center leading-tight px-1 overflow-hidden">
+                      <h4 className="text-[10px] sm:text-[11px] font-bold tracking-wider text-slate-800 uppercase">{yayasanName}</h4>
+                      <h2 className="text-xs sm:text-sm md:text-base font-extrabold text-sky-950 tracking-tight uppercase my-0.5">{lembagaName}</h2>
+                      <p className="text-[9.5px] text-slate-700 font-medium">{identitasName}</p>
+                      <p className="text-[9px] text-slate-600">{alamatName}</p>
+                    </div>
+                    <div className="w-16 h-16 flex-shrink-0 flex justify-center items-center">
+                      <img
+                        src={base64Sirama || parseDirectImageUrl(logoSirama)}
+                        alt="Logo SIRAMA"
+                        crossOrigin="anonymous"
+                        className="w-14 h-14 object-contain select-none"
+                        onError={(e) => { e.currentTarget.src = APP_CONFIG.DEFAULT_LOGO_SIRAMA_URL; }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Judul & Periode */}
+                <div className="text-center my-2.5">
+                  <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wide text-slate-900 underline decoration-slate-900 decoration-1 underline-offset-4">
+                    {judulLaporan}
+                  </h3>
+                  <p className="text-[10.5px] font-semibold text-slate-700 mt-0.5">
+                    Periode: {periodeText}
+                  </p>
+                </div>
+
+                {/* Ringkasan Metrik */}
+                <div className="my-2.5 bg-slate-50 border border-slate-300 p-2 rounded text-[10px] grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <span className="text-slate-500 block">Total Sesi KBM:</span>
+                    <strong className="text-slate-800">{stats.total} Sesi</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">Tingkat Kehadiran:</span>
+                    <strong className="text-emerald-700">{stats.persentase}% ({stats.hadirEfektif} Sesi)</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">Izin / Sakit / Alpha:</span>
+                    <strong className="text-slate-800">{stats.izin} I / {stats.sakit} S / {stats.alpa} A</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">Tugas Dinas:</span>
+                    <strong className="text-indigo-700">{stats.tugasDinas} TD</strong>
+                  </div>
+                </div>
+
+                {reportType === 'detailed' ? (
+                  // TABEL 2: LOG HARIAN / RINCI
+                  <div className="my-4 overflow-x-auto">
+                    <div className="text-center mb-4">
+                      <h3 className="text-sm font-bold uppercase underline">DAFTAR HADIR GURU - {filterState.selectedKelas || 'SEMUA KELAS'}</h3>
+                      <p className="text-xs font-semibold">Periode: {periodeText}</p>
+                    </div>
+
+                    <table className="w-full text-left border-collapse border border-slate-800 text-xs sm:text-sm">
+                      <thead>
+                        <tr className="bg-slate-100 text-slate-900 font-bold text-center border-b border-slate-800">
+                          <th className="border border-slate-800 py-3 px-2 w-10">No</th>
+                          <th className="border border-slate-800 py-3 px-3 w-28">Tanggal</th>
+                          <th className="border border-slate-800 py-3 px-4 text-left">Nama Guru</th>
+                          <th className="border border-slate-800 py-3 px-4 text-left">Mapel</th>
+                          <th className="border border-slate-800 py-3 px-3 w-20">Kelas</th>
+                          <th className="border border-slate-800 py-3 px-3 w-16">Jam</th>
+                          <th className="border border-slate-800 py-3 px-3 w-24">Status</th>
+                          <th className="border border-slate-800 py-3 px-4">Keterangan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {currentRecords.map((r, idx) => (
+                          <tr key={r.id} className="border-b border-slate-300">
+                            <td className="border border-slate-800 py-3 px-2 text-center">{idx + 1}</td>
+                            <td className="border border-slate-800 py-3 px-3 text-center whitespace-nowrap">{formatIndonesianShortDate(r.tanggal)}</td>
+                            <td className="border border-slate-800 py-3 px-4 font-semibold">{r.namaGuru}</td>
+                            <td className="border border-slate-800 py-3 px-4">{r.mataPelajaran}</td>
+                            <td className="border border-slate-800 py-3 px-3 text-center font-bold bg-sky-50">{r.kelas}</td>
+                            <td className="border border-slate-800 py-3 px-3 text-center font-bold">Jam {r.jam}</td>
+                            <td className="border border-slate-800 py-3 px-3 text-center font-bold">
+                              {STATUS_CONFIG[r.status]?.label || r.status}
+                            </td>
+                            <td className="border border-slate-800 py-3 px-4 text-slate-600">{r.keterangan || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  // TABEL 3: BERITA ACARA KBM (Grouped by Kelas, 3 per row)
+                  <div className="my-4">
+                    <div className="text-center mb-4">
+                       <h2 className="text-lg font-bold">Berita Acara KBM MADAR</h2>
+                       <p className="text-sm">{periodeText}</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {Object.entries(currentRecords.reduce((acc, r) => {
+                        if (!acc[r.kelas]) acc[r.kelas] = [];
+                        acc[r.kelas].push(r);
+                        return acc;
+                      }, {} as Record<string, AttendanceRecord[]>)).sort((a,b) => a[0].localeCompare(b[0])).map(([kelas, records], _, array) => {
+                        const isLastRow = array.length % 3 !== 0 && array.length - array.indexOf([kelas, records] as any) <= (array.length % 3);
+                        const wrapperClass = isLastRow && array.length % 3 !== 0 ? 'md:col-start-2' : '';
+                        
+                        return (
+                          <div key={kelas} className={`border border-slate-800 break-inside-avoid ${wrapperClass}`}>
+                            <h3 className="font-bold bg-slate-100 p-1 border-b border-slate-800 text-center text-xs">Kelas {kelas}</h3>
+                            <table className="w-full text-left border-collapse text-[9px]">
+                              <thead>
+                                <tr className="bg-slate-50 border-b border-slate-800">
+                                  <th className="border-r border-slate-800 p-0.5 text-center">Jam</th>
+                                  <th className="border-r border-slate-800 p-0.5">Mapel</th>
+                                  <th className="border-r border-slate-800 p-0.5">Pengajar</th>
+                                  <th className="p-0.5 text-center">Ket</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {records.sort((a,b) => Number(a.jam) - Number(b.jam)).map(r => {
+                                  let rowColor = '';
+                                  if (r.status === 'ALPA') rowColor = 'bg-rose-200';
+                                  else if (r.status === 'IZIN' || r.status === 'SAKIT') rowColor = 'bg-yellow-200';
+                                  else if (r.status === 'TUGAS_DINAS') rowColor = 'bg-sky-200';
+                                  
+                                  const statusShort = r.status === 'HADIR' ? '' : 
+                                    r.status === 'IZIN' ? 'I' : 
+                                    r.status === 'SAKIT' ? 'S' : 
+                                    r.status === 'ALPA' ? 'A' : 
+                                    r.status === 'TUGAS_DINAS' ? 'TD' : r.status;
+                                  
+                                  return (
+                                    <tr key={r.id} className={`border-b border-slate-200 last:border-b-0 ${rowColor}`}>
+                                      <td className="border-r border-slate-800 p-0.5 text-center">{r.jam}</td>
+                                      <td className="border-r border-slate-800 p-0.5 truncate max-w-[60px]" title={r.mataPelajaran}>{r.mataPelajaran}</td>
+                                      <td className="border-r border-slate-800 p-0.5 truncate max-w-[80px]" title={r.namaGuru}>{r.namaGuru}</td>
+                                      <td className="p-0.5 text-center font-bold">{statusShort}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* TANDA TANGAN RESMI */}
+                <div className="mt-6 pt-2 break-inside-avoid text-[10.5px]">
+                  <div className="flex justify-between items-start">
+                    <div className="text-center w-56">
+                      <p className="text-slate-600 mb-0.5">Mengetahui,</p>
+                      <p className="font-bold text-slate-900">{staffJabatan}</p>
+                      <div className="h-14" />
+                      <p className="font-bold text-slate-900 underline underline-offset-2">
+                        {staffName}
+                      </p>
+                    </div>
+
+                    <div className="text-center w-56">
+                      <p className="text-slate-600 mb-0.5">{kotaName}, {todayStr}</p>
+                      <p className="font-bold text-slate-900">{kepalaJabatan}</p>
+                      <div className="h-14" />
+                      <p className="font-bold text-slate-900 underline underline-offset-2">
+                        {kepalaName}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
-
-            {/* TANDA TANGAN RESMI */}
-            <div className="mt-6 pt-2 break-inside-avoid text-[10.5px]">
-              <div className="flex justify-between items-start">
-                
-                {/* Waka / Staff Kurikulum */}
-                <div className="text-center w-56">
-                  <p className="text-slate-600 mb-0.5">Mengetahui,</p>
-                  <p className="font-bold text-slate-900">{staffJabatan}</p>
-                  <div className="h-14" />
-                  <p className="font-bold text-slate-900 underline underline-offset-2">
-                    {staffName}
-                  </p>
-                </div>
-
-                {/* Kepala Madrasah */}
-                <div className="text-center w-56">
-                  <p className="text-slate-600 mb-0.5">
-                    {kotaName}, {todayStr}
-                  </p>
-                  <p className="font-bold text-slate-900">{kepalaJabatan}</p>
-                  <div className="h-14" />
-                  <p className="font-bold text-slate-900 underline underline-offset-2">
-                    {kepalaName}
-                  </p>
-                </div>
-
-              </div>
-            </div>
-
           </div>
 
         </div>
